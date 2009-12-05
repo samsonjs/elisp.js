@@ -90,7 +90,6 @@ EL.Parser.prototype.parse = function() {
     }
     this.expressions = exprs;
     this.prettyPrint(exprs);
-    return exprs;
 };
 
 EL.Parser.prototype.parseUntil = function(regex, initial, next) {
@@ -165,10 +164,8 @@ EL.Parser.prototype.parseExpression = function() {
     else if (c == "'") {
 	print("QUOTE");
 	this.consumeChar();
-	var expr = this.parseExpression(),
-	    quote = [['symbol', 'quote']];
-	quote.push(expr);
-	value = ['sexp', quote];
+	value = ['sexp', [['symbol', 'quote']]];
+	value[1].push(this.parseExpression());
     }
     else if (c == '"') {
 	print("STRING");
@@ -186,7 +183,7 @@ EL.Parser.prototype.parseExpression = function() {
     return value;
 };
 
-EL.Parser.prototype.prettyPrint = function(x, indent, key) {
+EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
     var typeOf = function(value) {
 	var s = typeof value;
 	if (s === 'object') {
@@ -206,65 +203,91 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key) {
     if (indent === undefined) {
 	indent = 0;
     }
-    
+   
+    /* string to print at the end, the only way to print 2 strings in
+     * succession without a newline is to buffer them
+     */
+    var buffer = "";
+    var printB = function(s, newline) {
+	buffer += s;
+	if (newline) buffer += "\n";
+    };
+    var dumpBuffer = function() {
+	if (buffer.length > 0)
+	    print(buffer);
+	buffer = "";
+    };
+
     var space = "";
-    for (var j = 0; j < indent; j++) {
-	space += "    ";
-    }
+//     for (var j = 0; j < indent; j++) {
+// 	space += "    ";
+//     }
 	
     switch (typeOf(x)) {
     case 'object':
+	print("PP:OBJECT");
 	if (key) {
-	    print(space + key + ': {');	    
+	    printB(space + key + ': {');
 	}
 	else {
-	    print(space + '{');
+	    printB(space + '{');
 	}
 	for (var a in x) {
-	    this.prettyPrint(x[a], 1+indent, a);
+	    printB(this.prettyPrint(x[a], 1+indent, a, true));
 	}
-	print(space + "},");
+	printB(space + "}");
 	break;
 
     case 'string':
+	print("PP:STRING");
 	if (key) {
-	    print(space + key + ': "' + x + '",');	    
+	    printB(space + key + ': "' + x + '"');
 	}
 	else {
-	    print(space + '"' + x + '",');
+	    printB(space + '"' + x + '"');
 	}
+	return buffer;
 	break;
 
     case 'array':
+	print("PP:ARRAY");
 	if (key) {
-	    print(space + key + ': [');
+	    printB(space + key + ': [');
 	}
 	else {
-	    print(space + '[');
+	    printB(space + '[');
 	}
 	var n = x.length, i = 0;
 	while (i < n) {
-	    this.prettyPrint(x[i++], 1+indent);
+	    if (i > 0) printB(', ');
+	    printB(this.prettyPrint(x[i++], 1+indent, undefined, true));
 	}
-	print(space + '],');
+	printB(space + ']');
 	break;
 
     case 'null':
+	print("PP:NULL");
 	if (key) {
-	    print(space + key + ': (null),');
+	    printB(space + key + ': (null)');
 	}
 	else {
-	    print(space + '(null),');
+	    printB(space + '(null)');
 	}
+	return buffer;
 	break;
 
     default:
+	print("PP:UNKNOWN");
 	if (key) {
-	    print(space + key + ": " + x + ',');
+	    printB(space + key + ": " + x);
 	}
 	else {
-	    print(space + x + ',');
+	    printB(space + x);
 	}
+	return buffer;
 	break;
     }
+    var s = buffer;
+    if (!noprint) dumpBuffer();
+    return s;
 };
