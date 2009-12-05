@@ -30,6 +30,11 @@ var EL = function(){};
 /* EL.nil is implicitly undefined */
 EL.t = true;
 
+EL.parse = function(input) {
+    var parser = new EL.Parser(input);
+    parser.parse();
+};
+
 EL.Parser = function(data) {
     this.data = data;
 };
@@ -89,7 +94,9 @@ EL.Parser.prototype.parse = function() {
 	}
     }
     this.expressions = exprs;
+    print('');
     this.prettyPrint(exprs);
+    print('');
 };
 
 EL.Parser.prototype.parseUntil = function(regex, initial, next) {
@@ -103,15 +110,27 @@ EL.Parser.prototype.parseUntil = function(regex, initial, next) {
     return token;
 };
 
-EL.Parser.prototype.parseSexp = function() {
-    var sexp = [],
-	token;
+EL.Parser.prototype.parseList = function() {
+    var list = [],
+	expr;
     // consume initial paren '('
     this.consumeChar();
     while ((expr = this.parseExpression()) && expr != ')') {
-	sexp.push(expr);
+	list.push(expr);
     }
-    return sexp;
+    return list;
+};
+
+EL.Parser.prototype.parseCons = function() {
+    var cons = [],
+	expr;
+    // consume initial paren '('
+    this.consumeChar();
+    cons.push(this.parseExpression());
+    // ignore .
+    this.parseExpression();
+    cons.push(this.parseExpression());
+    return cons;
 };
 
 EL.Parser.prototype.parseString = function() {
@@ -150,33 +169,47 @@ EL.Parser.prototype.lookingAtNumber = function() {
     return (match != null);
 };
 
+EL.Parser.prototype.lookingAtCons = function() {
+    var orig_pos = this.pos,
+	_ = this.consumeChar(),
+	_ = this.parseExpression(),
+	cdr = this.parseExpression();
+    this.pos = orig_pos; // rewind, like it never happened.
+    return cdr != null && cdr[0] == 'symbol' && cdr[1] == '.';
+};
+
 EL.Parser.prototype.parseExpression = function() {
     var value,
 	c = this.peek();
-    if (c == '(') {
-	print("SEXP(");
-	value = ['sexp', this.parseSexp()];
+    if (c == '(' && this.lookingAtCons()) {
+// 	print("CONS(");
+	value = ['cons', this.parseCons()];
+    }
+    else if (c == '(') {
+// 	print("LIST(");
+	var list = this.parseList();
+	value = (list.length > 0) ? ['list', list] : ['symbol', 'nil'];
     }
     else if (c == ')') {
-	print(")");
+// 	print(")");
 	return this.consumeChar();
     }
     else if (c == "'") {
-	print("QUOTE");
+// 	print("QUOTE");
 	this.consumeChar();
-	value = ['sexp', [['symbol', 'quote']]];
+	value = ['list', [['symbol', 'quote']]];
 	value[1].push(this.parseExpression());
     }
     else if (c == '"') {
-	print("STRING");
+// 	print("STRING");
 	value = ['string', this.parseString()];
     }
     else if (this.lookingAtNumber()) {
-	print("NUMBER");
+// 	print("NUMBER");
 	value = ['number', this.parseNumber()];
     }
     else if (c) {
-	print("SYMBOL");
+// 	print("SYMBOL");
 	value = ['symbol', this.parseSymbol()];
     }
     this.consumeWhitespace();
@@ -212,9 +245,19 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	buffer += s;
 	if (newline) buffer += "\n";
     };
-    var dumpBuffer = function() {
-	if (buffer.length > 0)
-	    print(buffer);
+    var dumpBuffer = function(b) {
+	if (b === undefined) b = buffer;
+	if (buffer.length <= 72) {
+	    print(buffer);    
+	}
+	else {
+	    var split = 72;
+	    var c;
+	    while ((c = b[split]) && c.match(/[a-zA-Z0-9"'\[\]_-]/)) --split;
+	    print(b.substring(0, split));
+	    var next_chunk = b.substring(split, b.length);
+	    if (next_chunk) dumpBuffer(next_chunk);
+	}
 	buffer = "";
     };
 
@@ -225,7 +268,6 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	
     switch (typeOf(x)) {
     case 'object':
-	print("PP:OBJECT");
 	if (key) {
 	    printB(space + key + ': {');
 	}
@@ -239,7 +281,6 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	break;
 
     case 'string':
-	print("PP:STRING");
 	if (key) {
 	    printB(space + key + ': "' + x + '"');
 	}
@@ -250,7 +291,6 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	break;
 
     case 'array':
-	print("PP:ARRAY");
 	if (key) {
 	    printB(space + key + ': [');
 	}
@@ -266,7 +306,6 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	break;
 
     case 'null':
-	print("PP:NULL");
 	if (key) {
 	    printB(space + key + ': (null)');
 	}
@@ -277,7 +316,6 @@ EL.Parser.prototype.prettyPrint = function(x, indent, key, noprint) {
 	break;
 
     default:
-	print("PP:UNKNOWN");
 	if (key) {
 	    printB(space + key + ": " + x);
 	}
