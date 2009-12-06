@@ -1,4 +1,4 @@
-var EL = function(){};
+var spidermonkeykludge = 0;
 // spidermonkey doesn't like a C-style comment at the beginning
 
 /*
@@ -37,6 +37,10 @@ Array.prototype.each = function(fn) {
 	++i;
     }
 };
+
+
+// our namespace
+var EL = function(){};
 
 	
 /****************************************************************
@@ -188,48 +192,39 @@ EL.Parser.prototype.lookingAtNumber = function() {
 };
 
 EL.Parser.prototype.lookingAtCons = function() {
-    this.fake = true;
     var orig_pos = this.pos,
 	_ = this.consumeChar(),
 	_ = this.parseExpression(),
 	cdr = this.parseExpression();
     this.pos = orig_pos; // rewind, like it never happened.
-    this.fake = false;
-    return cdr != null && EL.tag(cdr) == 'symbol' && EL.val(cdr) == '.';
+    return EL.typeOf(cdr) == 'array' && EL.tag(cdr) == 'symbol' && EL.val(cdr) == '.';
 };
 
 EL.Parser.prototype.parseExpression = function() {
     var value,
 	c = this.peek();
     if (c == '(' && this.lookingAtCons()) {
-// 	print("CONS(");
 	value = ['cons', this.parseCons()];
     }
     else if (c == '(') {
-// 	print("LIST(");
 	var list = this.parseList();
     	value = (list.length > 0) ? ['list', list] : EL.nil;
     }
     else if (c == ')') {
-//	print(">>> ) <<<");
 	return this.consumeChar();
     }
     else if (c == "'") {
-// 	print("QUOTE");
 	this.consumeChar();
 	value = ['list', [['symbol', 'quote']]];
 	value[1].push(this.parseExpression());
     }
     else if (c == '"') {
-// 	print("STRING");
 	value = ['string', this.parseString()];
     }
     else if (this.lookingAtNumber()) {
-// 	print("NUMBER");
 	value = ['number', this.parseNumber()];
     }
     else if (c) {
-// 	print("SYMBOL");
 	value = ['symbol', this.parseSymbol()];
     }
     this.consumeWhitespace();
@@ -250,18 +245,22 @@ EL.SymbolTable = function(bindings) {
     if (bindings) this.define(bindings);
 };
 
-EL.SymbolTable.prototype.lookup = function(name) {
+EL.SymbolTable.prototype.lookupWithScope = function(name) {
     var i = this.level,
 	symbol;
     while (i >= 0) {
-//	print('*** looking for ' + name + ' at level ' + i);
-	symbol = this.symbols[i][name];
-        if (symbol) {
-            return symbol;
+	value = this.symbols[i][name];
+        if (value) {
+            return [i, value];
         }
 	--i;
     }
     return null;
+};
+
+EL.SymbolTable.prototype.lookup = function(name) {
+    var pair = this.lookupWithScope(name);
+    return pair && pair[1];
 };
 
 // store the given symbol/value pair in the symbol table at the current level.
@@ -274,23 +273,33 @@ EL.SymbolTable.prototype.define = function(name, value) {
 	while (i < n) {
 	    var name = bindings[i][0],
 	        value = bindings[i][1];
+// 	    print('name: ' + name);
+// 	    print('value: ' + value);
 	    scope[name] = value;
 	    ++i;
 	}
     }
     else {
-//	print('defining ' + name + ' = ' + value + ' at level ' + this.level);
 	this.symbols[this.level][name] = value;
     }
 };
 
 EL.SymbolTable.prototype.pushScope = function(bindings) {
+//     print('>>> pushing scope <<<');
+//     print('>>> level going from ' + this.level + ' to ' + (1+this.level));
+//     print(bindings);
     this.symbols[++this.level] = [];
     if (bindings) this.define(bindings);
 };
 
 EL.SymbolTable.prototype.popScope = function() {
     --this.level;
+};
+
+EL.SymbolTable.prototype.set = function(name, value) {
+    var pair = this.lookupWithScope(name),
+	level = pair[0];
+    this.symbols[level][name] = value;
 };
 
 /****************************************************************
@@ -317,16 +326,6 @@ EL.PrimitiveVariables = [
 
 // this is bound to the EL.Evaluator object
 EL.PrimitiveFunctions = [
-    ['defvar', {
-        type:       'primitive',
-        name:       'defvar',
-        params:     ['symbol', 'value', 'docstring'],
-        body:       function(symbol, value, docstring) {
-	    this.defineVar(EL.symbolName(symbol), value, docstring);
-	    return EL.nil;
-        },
-        docstring:  "define a variable in the local scope"
-    }],
     ['+', {
 	 type:      'primitive',
 	 name:      '+',
@@ -386,7 +385,7 @@ EL.PrimitiveFunctions = [
 		 else print(s);
 	     }
 	     if (tag == 'number' || tag == 'symbol' || tag == 'string') {
-		 p(El.val(x));
+		 p(EL.val(x));
 	     }
 	     else if (tag == 'function') {
 		 var fn = EL.val(x);
@@ -481,33 +480,39 @@ EL.Evaluator.prototype.defineVar = function(symbol, value, docstring) {
     });
 };
 
+EL.Evaluator.prototype.setVar = function(symbol, value) {
+    var valueObject = this.lookupVar(symbol);
+    valueObject.value = value;
+    this.variables.set(symbol, valueObject);
+};
+
 EL.Evaluator.prototype.defineFunc = function(symbol, params, body, docstring) {
     this.functions.define(symbol, {
 	type: 'function',
 	name: symbol,
-	params: params,
+	params: EL.val(params),
 	body: body,
 	docstring: docstring || "(undocumented)"
     });
 };
 
-EL.Evaluator.prototype.bind = function(params, args) {
-    var self = this;
-    return ;
-};
-
 EL.Evaluator.prototype.call = function(func, args) {
-    //var bindings = this.bind(func.params, args);
-    print('calling ' + func.name + ' with args: ' + args);
     var result;
     if (func.type === 'primitive') {
 	result = func.body.apply(this, args);
     }
     else {
+	this.functions.pushScope();
 	this.variables.pushScope(func.params.map(function(e, i){
-                return [e, args[i]];
+		var name = EL.symbolName(e),
+		    value = {
+			type: 'variable',
+			value: this.eval(args[i])
+		    };
+                return [name, value];
 	    }));
 	result = this.evalExpressions(func.body);
+	this.functions.popScope();
 	this.variables.popScope();
     }
     return result;
@@ -529,9 +534,59 @@ EL.Evaluator.prototype.eval = function(expr) {
 // 	var cons = expr[1];
 // 	result = [this.eval(cons[0]), this.eval(cons[1])];
 //     }
+
+    ///////////////////
+    // special forms //
+    ///////////////////
+    // (many could be in lisp when there are macros) //
+
     else if (EL.isQuote(expr)) {
-	result = EL.cdr(EL.val(expr));
+	result = EL.val(EL.val(expr));
     }
+    else if (EL.isDefVar(expr)) {
+	var val = EL.val(expr),
+	    name = EL.symbolName(val[1]),
+	    value = this.eval(val[2]),
+	    docstring = val[3];
+	// TODO check for re-definitions
+	this.defineVar(name, value, docstring);
+	result = EL.nil;
+    }
+    else if (EL.isDefFunc(expr)) {
+	var val = EL.val(expr),
+	    name = EL.symbolName(val[1]),
+	    params = val[2],
+	    docstring = EL.isString(val[3]) && val[3],
+	    body = val.slice(docstring ? 4 : 3);
+	// TODO check for re-definitions
+	this.defineFunc(name, params, body, docstring);
+	result = EL.nil;
+    }
+    else if (EL.isSet(expr)) {
+	var val = EL.val(expr),
+	    name = EL.symbolName(val[1]),
+	    value = this.eval(val[2]);
+	result = this.setVar(name, value);
+    }
+    else if (EL.isSetq(expr)) {
+	var val = EL.val(expr),
+	    i = 0;
+	while (EL.isSymbol(val[i+1])) {
+	    var name = EL.symbolName(val[i+1]),
+                value = this.eval(val[i+2]);
+	    result = this.setVar(name, value);
+	    i += 2;
+        }
+    }
+    else if (EL.isIf(expr)) {
+	var val = EL.val(expr),
+	    condition = this.eval(val[1]),
+	    trueBlock = val[2],
+	    nilBlock = val[3];
+	result = this.primitiveIf(condition, trueBlock, nilBlock);
+    }
+
+    // function application
     else if (EL.tag(expr) == 'list') {
 	var list = expr[1],
 	    car = list[0],
@@ -590,28 +645,18 @@ EL.assert = function(condition, message) {
 };
 
 EL.tag = function(expr) {
-    EL.assert(function() { 'tag'; return EL.typeOf(expr) == 'array'; }, expr);
+    EL.assert(function() { var f='tag'; return EL.typeOf(expr) == 'array'; }, expr);
     return expr[0];
 };
 
 EL.val = function(expr) {
-    EL.assert(function() { 'val'; return EL.typeOf(expr) == 'array'; }, expr);
+    EL.assert(function() { var f='val'; return EL.typeOf(expr) == 'array'; }, expr);
     return expr[1];
-};
-
-EL.car = function(cons) {
-    EL.assert(function(){ 'car'; return EL.typeOf(cons) == 'array'; }, cons);
-    return cons[0];
-};
-
-EL.cdr = function(cons) {
-    EL.assert(function(){ 'cdr'; return EL.typeOf(cons) == 'array'; }, cons);
-    return cons.slice(1);
 };
 
 EL.symbolName = function(symbol) {
 //    EL.Util.pp(symbol);
-    EL.assert(function(){ 'symbolName'; return EL.isSymbol(symbol); }, symbol);
+    EL.assert(function(){ var f='symbolName'; return EL.isSymbol(symbol); }, symbol);
     return symbol[1];
 };
 
@@ -626,7 +671,6 @@ EL.isString = function(expr) {
 EL.isList = function(expr) {
     return (EL.tag(expr) == 'list');
 };
-EL.isCons = EL.isList;
 
 EL.isFunction = function(expr) {
     return (EL.tag(expr) == 'function');
@@ -639,7 +683,7 @@ EL.isAtom = function(expr) {
 EL.inferType = function(exprs) {
     var type = 'number',
         initial = 0,
-        i = exprs.length;
+        i = exprs.length-1;
     while(i >= 0) {
 	if (EL.isString(exprs[i--])) {
 	    type = 'string';
@@ -650,13 +694,19 @@ EL.inferType = function(exprs) {
     return [type, initial];
 };
 
-EL.isQuote = function(expr) {
+EL.isSpecialForm = function(name, expr) {
     var tag = EL.tag(expr),
-        val = EL.val(expr),
-	car = EL.isCons(val) && EL.car(val),
-	name = car && EL.symbolName(car);
-    return (tag == 'list' && name == 'quote');
+	car = EL.typeOf(expr) == 'array' && EL.val(expr)[0],
+	thisName = car && EL.symbolName(car);
+    return (tag == 'list' && thisName == name);
 };
+EL.isQuote   = function(expr){return EL.isSpecialForm('quote', expr);};
+EL.isDefVar  = function(expr){return EL.isSpecialForm('defvar', expr);};
+EL.isDefFunc = function(expr){return EL.isSpecialForm('defun', expr);};
+EL.isSet     = function(expr){return EL.isSpecialForm('set', expr);};
+EL.isSetq    = function(expr){return EL.isSpecialForm('setq', expr);};
+EL.isCond    = function(expr){return EL.isSpecialForm('cond', expr);};
+EL.isIf      = function(expr){return EL.isSpecialForm('if', expr);};
 
 EL.eval = function(exprs) {
     var e = new EL.Evaluator();
@@ -673,10 +723,6 @@ EL.parseOne = function(string) {
 };
 EL.read = EL.parseOne;
 
-EL.print = function(expr) {
-    EL.Util.pp(expr);
-};
-
 EL.rep = function(string) {
     EL.print(EL.eval(EL.read(string)));
 };
@@ -686,8 +732,7 @@ EL.repl = function() {
 	e = new EL.Evaluator();
     while (true) {
 	print("elisp> ");
-	var x = readline();
-	EL.print(e.eval(p.parseOne(x)));
+	EL.print(e.eval(p.parseOne(readline())));
     }
 };
 
@@ -784,9 +829,13 @@ EL.Util.pp = function(x, indent, key, noprint) {
 	    printB(space + '"' + x + '"');
 	}
 	return buffer;
-	break;
 
     case 'array':
+	// nil special case
+        if (x.length == 2 && EL.tag(x) == 'symbol' && EL.val(x) == 'nil') {
+            return EL.Util.pp(null, indent, key);
+        }
+
 	if (key) {
 	    printB(space + key + ': [');
 	}
@@ -809,7 +858,6 @@ EL.Util.pp = function(x, indent, key, noprint) {
 	    printB(space + '(null)');
 	}
 	return buffer;
-	break;
 
     default:
 	if (key) {
@@ -819,12 +867,12 @@ EL.Util.pp = function(x, indent, key, noprint) {
 	    printB(space + x);
 	}
 	return buffer;
-	break;
     }
     var s = buffer;
     if (!noprint) dumpBuffer();
     return s;
 };
+EL.print = EL.Util.pp;
 
 // spidermonkey doesn't like a C-style comment at the end either
-function spidermonkeyissilly(){};
+spidermonkeykludge = 1;
