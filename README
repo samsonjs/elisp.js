@@ -2,23 +2,12 @@ Emacs Lisp implementation in JavaScript.
 
 Copyright (c) 2009 Sami Samhuri - sami.samhuri@gmail.com
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Released under the terms of the MIT license.  See the include file
+LICENSE.
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+Latest version available on github:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+    http://github.com/samsonjs/elisp.js
 
 
       Introduction
@@ -38,6 +27,36 @@ in the browser could be a reality; Ymacs is proof.
 
 [1] http://www.ymacs.org/
 [2] http://www.ymacs.org/demo/
+
+
+Getting Started
+===============
+
+I use Emacs and js-comint.el[3] with inferior-js set to
+/opt/local/bin/js, which is SpiderMonkey[4] from MacPorts[5] on Snow
+Leopard.  C-c b sends the buffer to the JS repl and then I use the
+EL.rep (read-eval-print), EL.repl, EL.parse, EL.eval, and EL.print
+functions defined in the section titled Lisp Support near the end of
+el.js.
+
+[3] http://js-comint-el.sourceforge.net/
+[4] http://www.mozilla.org/js/spidermonkey/
+[5] http://www.macports.org/
+
+Running js under rlwrap and then using load('el.js') works just as
+well if you don't use Emacs but still want readline.  Type EL.repl()
+to start the REPL or evaluate one thing with EL.rep,
+e.g. El.rep("(* 4 3)")
+
+There are other interfaces into the parser and evaluator besides the
+shortcuts.  new EL.Parser([input]) returns a parser object and likewise
+new EL.Evaluator([exprs]) returns an evaluator object.
+
+Mainly toy functions that do extremely simple operations on numbers
+and strings can be implemented right now.  Stay tuned, or better yet
+hack away and submit a pull request on github[6].
+
+[6] http://github.com/samsonjs/elisp.js
 
 
 What's here?

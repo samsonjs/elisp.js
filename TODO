@@ -7,7 +7,7 @@ TODO
 
  * boolean operator: not
 
- * special forms: if, cond, and, or
+ * special forms: if, cond, and, or, let, let*, letf, letf*
 
  * primitives: list/cons functions, string functions,
    	       apply, eval,
