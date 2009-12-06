@@ -1,0 +1,70 @@
+Emacs Lisp implementation in JavaScript.
+
+Copyright (c) 2009 Sami Samhuri - sami.samhuri@gmail.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+      Introduction
+(or "You must be kidding")
+==========================
+
+I'm not 100% sure why I think this might be useful to somebody.  The
+idea of editing code directly on github or bitbucket in a web browser
+is pretty cool though, and if you're going to do such a thing why not
+use the best tools available.  IMO those tools are written in Emacs
+Lisp so I would like to use them in the browser.  Maybe with some
+HTML5 offline goodness thrown in.
+
+Seeing Ymacs[1] in action[2] was also an inspiration to start this
+project as I've had it on my TODO list for several months now.  Emacs
+in the browser could be a reality; Ymacs is proof.
+
+[1] http://www.ymacs.org/
+[2] http://www.ymacs.org/demo/
+
+
+What's here?
+============
+
+Not much compared to the real thing but it's a decent start for < 1000
+lines.
+
+ * parser
+   (ints, floats, strings, symbols, lists, quoted expressions)
+
+ * symbol table
+   (functions & variables separate)
+
+ * lexical scope
+
+ * expression evaluator
+
+ * simple tagged primitive types
+   (string, symbol, primitive, function, number)
+
+ * special forms for defvar, defun, set, setq, and quote
+
+ * eval/apply for atoms, function calls, and a few special forms
+
+ * a few primitive math ops
+   (thanks to JS' overloading + works on strings too)
+
+ * 2 horrible print functions
+   (JS "pretty" printer & a half-assed Lisp print)

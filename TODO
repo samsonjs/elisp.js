@@ -1,0 +1,22 @@
+TODO
+====
+
+ * implement all Emacs Lisp types/objects
+
+ * relational operators: < > <= >= =
+
+ * boolean operator: not
+
+ * special forms: if, cond, and, or
+
+ * primitives: list/cons functions, string functions,
+   	       apply, eval,
+               require, provide
+
+ * macros
+
+ * dynamic scoping
+ 
+ * merge with Ymacs?
+
+ * look into CommonJS
