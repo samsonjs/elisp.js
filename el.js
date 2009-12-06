@@ -1,5 +1,5 @@
 var EL = function(){};
-// rhino doesn't like a C-style comment as its first input, strange
+// spidermonkey doesn't like a C-style comment at the beginning
 
 /*
  * Emacs Lisp implementation in JavaScript.
@@ -27,25 +27,24 @@ var EL = function(){};
  */
 
 
-/*************************
- ** Globals & Constants **
- *************************/
+// can't live without the basics
 
-/* EL.nil is implicitly undefined */
-EL.t = true;
-
-
-/************
- ** Parser **
- ************/
-
-EL.parse = function(input) {
-    var parser = new EL.Parser(input);
-    parser.parse();
+Array.prototype.each = function(fn) {
+    var i = 0,
+	n = this.length;
+    while (i < n) {
+        fn(this[i], i);
+	++i;
+    }
 };
 
+	
+/****************************************************************
+ **** Parser ****************************************************
+ ****************************************************************/
+
 EL.Parser = function(data) {
-    this.data = data;
+    this.data = data || '';
 };
 
 EL.Parser.Error = function(name, message) {
@@ -78,16 +77,21 @@ EL.Parser.prototype.consumeWhitespace = function() {
     }
 };
 
+EL.Parser.prototype.rewind = function() {
+    this.pos = 0;
+};
+
 EL.Parser.prototype.rest = function() {
-    return this.data.substring(this.pos, this.data.length);
+    return this.data.substring(this.pos);
 };
 
 EL.Parser.prototype.moreInput = function() {
     return (this.pos < this.data.length);
 };
 
-EL.Parser.prototype.parse = function() {
-    this.pos = 0;
+EL.Parser.prototype.parse = function(string) {
+    if (string) this.data = string;
+    this.rewind();
     var exprs = [];
     while (this.moreInput()) {
 	try {
@@ -103,9 +107,9 @@ EL.Parser.prototype.parse = function() {
 	}
     }
     this.expressions = exprs;
-    print('');
-    EL.pp(exprs);
-    print('');
+//     print('');
+//     EL.Util.pp(exprs);
+//     print('');
     return exprs;
 };
 
@@ -160,22 +164,22 @@ EL.Parser.prototype.parseSymbol = function() {
     return symbol;
 };
 
-// Only integers
 EL.Parser.prototype.parseNumber = function() {
-   return this.parseUntil(/[^\d]/, 0, function(n,c){return n*10 + parseInt(c);});
-    var c,
-	num = 0;
-    while ((c = this.peek()) && c.match(/\d/)) {
-	num *= 10;
-	num += parseInt(this.consumeChar());
+    var value = this.parseUntil(/[^\d]/, 0, function(n,c) {
+            return n*10 + parseInt(c);
+        });
+    if (this.peek() == '.') {
+	this.consumeChar();
+	var decimal = this.parseUntil(/[^\d]/, '', function(s,c) {return s + c;});
+	value = parseFloat('' + value + '.' + decimal);
     }
-    return num;
+    return value;
 };
 
 EL.Parser.prototype.lookingAtNumber = function() {
     var pos = this.pos,
 	rest = this.rest(),
-	match = rest.match(/^\d+\b/) || rest.match(/^\d+$/);
+	match = rest.match(/^\d+(\.\d+)?[\s)\n]/) || rest.match(/^\d+(\.\d+)?$/);
     return (match != null);
 };
 
@@ -187,7 +191,7 @@ EL.Parser.prototype.lookingAtCons = function() {
 	cdr = this.parseExpression();
     this.pos = orig_pos; // rewind, like it never happened.
     this.fake = false;
-    return cdr != null && cdr[0] == 'symbol' && cdr[1] == '.';
+    return cdr != null && EL.tag(cdr) == 'symbol' && EL.val(cdr) == '.';
 };
 
 EL.Parser.prototype.parseExpression = function() {
@@ -200,7 +204,7 @@ EL.Parser.prototype.parseExpression = function() {
     else if (c == '(') {
 // 	print("LIST(");
 	var list = this.parseList();
-    	value = (list.length > 0) ? ['list', list] : ['symbol', 'nil'];
+    	value = (list.length > 0) ? ['list', list] : EL.nil;
     }
     else if (c == ')') {
 //	print(">>> ) <<<");
@@ -228,48 +232,190 @@ EL.Parser.prototype.parseExpression = function() {
     return value;
 };
 
-EL.VarTable = function() {
-    this.t = {value: EL.t, docstring: "true"};
-    this.nil = {value: null, docstring: "nil"};
+/****************************************************************
+ ****************************************************************/
+
+
+/****************************************************************
+ **** Symbol Table **********************************************
+ ****************************************************************/
+
+EL.SymbolTable = function(bindings) {
+    this.symbols = [[]];
+    this.level = 0;
+    if (bindings) this.define(bindings);
 };
 
-EL.FuncTable = function() {
-    this['+'] = {
-	params:    ['a', 'b'],
-	body:      function(a,b) { return ['number', a + b]; },
-	docstring: "add two numbers"
-    };
-    this['-'] = {
-        params:    ['a', 'b'],
-	body:      function(a,b) { return ['number', a - b]; },
-	docstring: "subtract two numbers"
-    };
-    this['*'] = {
-        params:    ['a', 'b'],
-	body:      function(a,b) { return ['number', a * b]; },
-	docstring: "multiply two numbers"
-    };
-    this['/'] = {
-        params:    ['a', 'b'],
-	body:      function(a,b) { return ['number', a / b]; },
-	docstring: "divide two numbers"
-    };
-    this['print'] = {
-        params:    ['x'],
-	body:      function(x) { print(x); return ['symbol', 'nil']; },
-	docstring: "print an expression"
-    };
+EL.SymbolTable.prototype.lookup = function(name) {
+    var i = this.level,
+	symbol;
+    while (i >= 0) {
+//	print('*** looking for ' + name + ' at level ' + i);
+	symbol = this.symbols[i][name];
+        if (symbol) {
+            return symbol;
+        }
+	--i;
+    }
+    return null;
 };
 
+// store the given symbol/value pair in the symbol table at the current level.
+EL.SymbolTable.prototype.define = function(name, value) {
+    if (value === undefined && EL.typeOf(name) == 'array') {	
+	var bindings = name,
+	    i = 0,
+	    n = bindings.length,
+	    scope = this.symbols[this.level];
+	while (i < n) {
+	    var name = bindings[i][0],
+	        value = bindings[i][1];
+	    scope[name] = value;
+	    ++i;
+	}
+    }
+    else {
+//	print('defining ' + name + ' = ' + value + ' at level ' + this.level);
+	this.symbols[this.level][name] = value;
+    }
+};
 
-/****************
- ** Evaluation **
- ****************/
+EL.SymbolTable.prototype.pushScope = function(bindings) {
+    this.symbols[++this.level] = [];
+    if (bindings) this.define(bindings);
+};
+
+EL.SymbolTable.prototype.popScope = function() {
+    --this.level;
+};
+
+/****************************************************************
+ ****************************************************************/
+
+
+
+/****************************************************************
+ **** Primitives ************************************************
+ ****************************************************************/
+
+EL.PrimitiveVariables = [
+    ['t', {
+        type: 'variable',
+	value: true,
+	docstring: "true"
+    }],
+    ['nil', {
+        type: 'variable',
+	value: null,
+	docstring: "nil"
+    }]
+];
+
+// this is bound to the EL.Evaluator object
+EL.PrimitiveFunctions = [
+    ['defvar', {
+        type:       'primitive',
+        name:       'defvar',
+        params:     ['symbol', 'value', 'docstring'],
+        body:       function(symbol, value, docstring) {
+	    this.defineVar(EL.symbolName(symbol), value, docstring);
+	    return EL.nil;
+        },
+        docstring:  "define a variable in the local scope"
+    }],
+    ['+', {
+	 type:      'primitive',
+	 name:      '+',
+	 params:    [],
+	 body:      function() {
+	     var args = EL.Util.shallowCopy(arguments),
+		 initial = EL.inferType(args),
+		 type = initial[0];
+	     return EL.Util.reduce(function(sum, n) {
+		     return [type, EL.val(sum) + EL.val(n)];
+	         }, initial, args);
+	 },
+	 docstring: "add two numbers"
+    }],
+    ['-', {
+	 type:      'primitive',
+	 name:      '-',
+	 params:    [],
+	 body:      function() {
+	     return EL.Util.foldr(function(diff, n) {
+		     return ['number', EL.val(diff) - EL.val(n)];
+	         }, ['number', 0], EL.Util.shallowCopy(arguments));
+	 },
+	 docstring: "subtract two numbers"
+    }],
+    ['*', {
+	 type:      'primitive',
+	 name:      '*',
+	 params:    [],
+	 body:      function() {
+	     return EL.Util.reduce(function(prod, n) {
+		     return ['number', EL.val(prod) * EL.val(n)];
+	         }, ['number', 1], EL.Util.shallowCopy(arguments));
+	 },
+	 docstring: "multiply two numbers"
+    }],
+    ['/', {
+	 type:      'primitive',
+	 name:      '/',
+	 params:    [],
+	 body:      function() {
+	     return EL.Util.foldr(function(quot, n) {
+		     return ['number', EL.val(quot) / EL.val(n)];
+	         }, ['number', 1], EL.Util.shallowCopy(arguments));
+	 },
+	 docstring: "divide two numbers"
+    }],
+    ['print', {
+	 type:      'primitive',
+	 name:      'print',
+	 params:    ['x'],
+	 body:      function(x, tostring) {
+	     var buffer = "",
+		 tag = EL.tag(x);
+	     function p(s) {
+		 if (tostring) buffer += s;
+		 else print(s);
+	     }
+	     if (tag == 'number' || tag == 'symbol' || tag == 'string') {
+		 p(El.val(x));
+	     }
+	     else if (tag == 'function') {
+		 var fn = EL.val(x);
+		 p('(lambda ' + fn.name + ' (' + fn.params + ')\n');
+		 p(fn.body); // TODO lisp pretty print
+		 p(')');
+	     }
+	     else if (tag == 'list') {
+		 var recurse = arguments.callee; // far easier to remember than Y
+		 print('(', El.val(x).map(function(e){return (recurse(e, true) + ' ');}), ")");
+	     }
+	     else {
+		 print('unknown type: ' + x);
+	     }
+	     return EL.nil;
+	 },
+	 docstring: "print an expression"    
+     }]
+];
+
+
+/****************************************************************
+ ****************************************************************/
+
+
+/****************************************************************
+ **** Evaluation ************************************************
+ ****************************************************************/
 
 EL.Evaluator = function(exprs) {
     this.expressions = exprs;
-    this.variables = new EL.VarTable();
-    this.functions = new EL.FuncTable();
+    this.variables = new EL.SymbolTable(EL.PrimitiveVariables);
+    this.functions = new EL.SymbolTable(EL.PrimitiveFunctions);
 };
 
 EL.Evaluator.Error = function(name, message, expr) {
@@ -289,8 +435,8 @@ EL.Evaluator.prototype.error = function(name, expr) {
     throw(new EL.Evaluator.Error(name, EL.Evaluator.Error.messages[name], expr));
 };
 
-EL.Evaluator.prototype.evalExpressions = function() {
-    var exprs = this.expressions,
+EL.Evaluator.prototype.evalExpressions = function(expressions) {
+    var exprs = expressions || this.expressions,
 	i = 0,
 	n = exprs.length,
 	result;
@@ -300,10 +446,10 @@ EL.Evaluator.prototype.evalExpressions = function() {
 	} catch (e) {
 	    if (e.evalError) {
 		print('[error] ' + e.message);
-		if (e.expr) {
-		    print('expr: ' + e.expr);
+		if (e.expression) {
+		    print("got: " + e.expression);
 		}
-		result = null;
+		result = EL.nil;
 		break;
 	    }
 	    else {
@@ -311,132 +457,264 @@ EL.Evaluator.prototype.evalExpressions = function() {
 	    }
 	}
     }
-    EL.pp(result);
+//     EL.Util.pp(result);
     return result;
 };
 
 EL.Evaluator.prototype.lookupVar = function(symbol) {
-    return this.variables[symbol];
+    return this.variables.lookup(symbol);
 };
 
 EL.Evaluator.prototype.lookupFunc = function(symbol) {
-    return this.functions[symbol];
+    return this.functions.lookup(symbol);
 };
 
 EL.Evaluator.prototype.defineVar = function(symbol, value, docstring) {
-    this.variables[symbol] = {
+    this.variables.define(symbol, {
 	type: 'variable',
 	value: value,
 	docstring: docstring || "(undocumented)"
-    };
+    });
 };
 
 EL.Evaluator.prototype.defineFunc = function(symbol, params, body, docstring) {
-    this.functions[symbol] = {
+    this.functions.define(symbol, {
 	type: 'function',
+	name: symbol,
 	params: params,
 	body: body,
 	docstring: docstring || "(undocumented)"
-    };
+    });
 };
 
 EL.Evaluator.prototype.bind = function(params, args) {
-    var i = 0,
-	n = params.length,
-	result = [],
-	value;
-    while (i < n && args[i]) {
-	result.push(this.eval(args[i++]));
-    }
-    return result;
+    var self = this;
+    return ;
 };
 
 EL.Evaluator.prototype.call = function(func, args) {
+    //var bindings = this.bind(func.params, args);
+    print('calling ' + func.name + ' with args: ' + args);
     var result;
-    if (typeof func.body === 'function') {
-	result = func.body.apply(null, args);
+    if (func.type === 'primitive') {
+	result = func.body.apply(this, args);
     }
     else {
-	// TODO
-	result = null;
+	this.variables.pushScope(func.params.map(function(e, i){
+                return [e, args[i]];
+	    }));
+	result = this.evalExpressions(func.body);
+	this.variables.popScope();
     }
     return result;
 };
 
-EL.Evaluator.prototype.isSymbol = function(expr) {
-    return (expr[0] && expr[0] === 'symbol');
-};
-
-EL.Evaluator.prototype.isFunction = function(expr) {
-    return (expr && expr.type === 'function');
-};
-
 EL.Evaluator.prototype.eval = function(expr) {
-    var result, x;
-    switch(expr[0]) {
-    case 'string':
-	result = expr[1];
-	break;
-    case 'symbol':
-	x = this.lookupVar(expr[1]);
-	if (x == null) this.error('undefined-var', expr[1]);
+    var result, x,
+	tag = EL.tag(expr);
+    if (EL.isAtom(expr)) {
+	return expr;
+    }
+    else if (tag == 'symbol') {
+	var name = EL.val(expr);
+	x = this.lookupVar(name);
+	if (x == null) this.error('undefined-var', name);
 	result = x.value;
-	break;
-    case 'number':
-	result = expr[1];
-	break;
-    case 'cons':
-	var cons = expr[1];
-	result = [this.eval(cons[0]), this.eval(cons[1])];
-	break;
-    case 'list':
+    }
+//     else if (expr[0] == 'cons') {
+// 	var cons = expr[1];
+// 	result = [this.eval(cons[0]), this.eval(cons[1])];
+//     }
+    else if (EL.isQuote(expr)) {
+	result = EL.cdr(EL.val(expr));
+    }
+    else if (EL.tag(expr) == 'list') {
 	var list = expr[1],
-	    i = 0,
-	    n = list.length,
 	    car = list[0],
-	    cdr = list.slice(1, list.length),
+	    cdr = list.slice(1),
 	    func, args;
-	while (!(this.isFunction(car) || this.isSymbol(car))) {
+	while (!(EL.isFunction(car) || EL.isSymbol(car))) {
 	    car = this.eval(car);
 	}
 	if ((func = this.lookupFunc(car[1]))) {
-	    args = this.bind(func.params, cdr);
+	    var self = this;
+	    args = cdr.map(function(e){return self.eval(e);});
 	    result = this.call(func, args);
 	}
 	else {
 	    this.error('undefined-func', car);
 	}
-	break;
-    default:
+    }
+    else {
 	this.error('not-expr', expr);
-	break;
     }
     return result;
 };
 
 
+/****************************************************************
+ ****************************************************************/
 
 
+/****************************************************************
+ **** Utilities *************************************************
+ ****************************************************************/
 
+EL.nil = ['symbol', 'nil'];
+EL.t = ['symbol', 't'];
 
-// hideous
-EL.pp = function(x, indent, key, noprint) {
-    var typeOf = function(value) {
-	var s = typeof value;
-	if (s === 'object') {
-            if (value) {
-		if (typeof value.length === 'number' &&
-                    !(value.propertyIsEnumerable('length')) &&
-                    typeof value.splice === 'function') {
-                    s = 'array';
-		}
-            } else {
-		s = 'null';
-            }
+EL.typeOf = function(value) {
+    var s = typeof value;
+    if (s === 'object') {
+        if (value) {
+	    if (typeof value.length === 'number' &&
+                !(value.propertyIsEnumerable('length')) &&
+                typeof value.splice === 'function') {
+                s = 'array';
+	    }
+        } else {
+	    s = 'null';
+        }
+    }
+    return s;
+};
+
+EL.assert = function(condition, message) {
+    if (!condition()) {
+        throw("assertion failed: " + condition + " (" + message + ")");
+    }
+};
+
+EL.tag = function(expr) {
+    EL.assert(function() { 'tag'; return EL.typeOf(expr) == 'array'; }, expr);
+    return expr[0];
+};
+
+EL.val = function(expr) {
+    EL.assert(function() { 'val'; return EL.typeOf(expr) == 'array'; }, expr);
+    return expr[1];
+};
+
+EL.car = function(cons) {
+    EL.assert(function(){ 'car'; return EL.typeOf(cons) == 'array'; }, cons);
+    return cons[0];
+};
+
+EL.cdr = function(cons) {
+    EL.assert(function(){ 'cdr'; return EL.typeOf(cons) == 'array'; }, cons);
+    return cons.slice(1);
+};
+
+EL.symbolName = function(symbol) {
+//    EL.Util.pp(symbol);
+    EL.assert(function(){ 'symbolName'; return EL.isSymbol(symbol); }, symbol);
+    return symbol[1];
+};
+
+EL.isSymbol = function(expr) {
+    return (EL.tag(expr) == 'symbol');
+};
+
+EL.isString = function(expr) {
+    return (EL.tag(expr) == 'string');
+};
+
+EL.isFunction = function(expr) {
+    return (EL.tag(expr) == 'function');
+};
+
+EL.isAtom = function(expr) {
+    return EL.tag(expr) == 'string' || EL.tag(expr) == 'number';
+};
+
+EL.inferType = function(exprs) {
+    var type = 'number',
+        initial = 0,
+        i = exprs.length;
+    while(i >= 0) {
+	if (EL.isString(exprs[i--])) {
+	    type = 'string';
+	    initial = '';
+	    break;
 	}
-	return s;
-    };
-    
+    }
+    return [type, initial];
+};
+
+EL.isQuote = function(expr) {
+    var tag = EL.tag(expr),
+        val = EL.val(expr),
+	car = EL.car(val),
+	name = EL.symbolName(car);
+    return (tag == 'list' && name == 'quote');
+};
+
+EL.eval = function(exprs) {
+    var e = new EL.Evaluator();
+    return e.evalExpressions(exprs);
+};
+
+EL.read = function(string) {
+    var p = new EL.Parser();
+    return p.parse(string);
+};
+EL.parse = EL.read;
+
+EL.print = function(expr) {
+    EL.Util.pp(expr);
+};
+
+EL.rep = function(string) {
+    EL.print(EL.eval(EL.read(string)));
+};
+
+EL.repl = function() {
+    var p = new EL.Parser(),
+	e = new EL.Evaluator();
+    while (true) {
+	EL.print("elisp> ");
+	EL.print(e.eval(p.parse(readline())));
+    }
+};
+
+
+/////////////////////////////////
+/////////// EL.Util /////////////
+/////////////////////////////////
+
+EL.Util = function(){};
+
+// aka foldl
+EL.Util.reduce = function(fn, accum, list) {
+    var i = 0,
+	n = list.length;
+    while (i < n) {
+	accum = fn(accum, list[i++]);
+    }
+    return accum;
+};
+
+EL.Util.foldr = function(fn, end, list) {
+    var i = list.length-1;
+    while (i >= 0) {
+	end = fn(list[i--], end);
+    }
+    return end;
+};
+
+EL.Util.shallowCopy = function(list) {
+    var i = 0,
+	n = list.length,
+	result = [];
+    while (i < n) {
+	result.push(list[i++]);
+    }
+    return result;
+};
+
+
+// i'm sorry
+EL.Util.pp = function(x, indent, key, noprint) {
     if (indent === undefined) {
 	indent = 0;
     }
@@ -459,7 +737,7 @@ EL.pp = function(x, indent, key, noprint) {
 	    var c;
 	    while ((c = b[split]) && c.match(/[a-zA-Z0-9"'\[\]_-]/)) --split;
 	    print(b.substring(0, split));
-	    var next_chunk = b.substring(split, b.length);
+	    var next_chunk = b.substring(split);
 	    if (next_chunk) dumpBuffer(next_chunk);
 	}
 	buffer = "";
@@ -470,7 +748,7 @@ EL.pp = function(x, indent, key, noprint) {
 // 	space += "    ";
 //     }
 	
-    switch (typeOf(x)) {
+    switch (EL.typeOf(x)) {
     case 'object':
 	if (key) {
 	    printB(space + key + ': {');
@@ -479,7 +757,7 @@ EL.pp = function(x, indent, key, noprint) {
 	    printB(space + '{');
 	}
 	for (var a in x) {
-	    printB(EL.pp(x[a], 1+indent, a, true));
+	    printB(EL.Util.pp(x[a], 1+indent, a, true));
 	}
 	printB(space + "}");
 	break;
@@ -504,7 +782,7 @@ EL.pp = function(x, indent, key, noprint) {
 	var n = x.length, i = 0;
 	while (i < n) {
 	    if (i > 0) printB(', ');
-	    printB(EL.pp(x[i++], 1+indent, undefined, true));
+	    printB(EL.Util.pp(x[i++], 1+indent, undefined, true));
 	}
 	printB(space + ']');
 	break;
@@ -534,3 +812,5 @@ EL.pp = function(x, indent, key, noprint) {
     return s;
 };
 
+// spidermonkey doesn't like a C-style comment at the end either
+function spidermonkeyissilly(){};
