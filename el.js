@@ -113,6 +113,10 @@ EL.Parser.prototype.parse = function(string) {
     return exprs;
 };
 
+EL.Parser.prototype.parseOne = function(string) {
+    return this.parse(string)[0];
+};
+
 EL.Parser.prototype.parseUntil = function(regex, initial, next, consumeTerminator) {
     var c,
 	token = initial,
@@ -619,6 +623,11 @@ EL.isString = function(expr) {
     return (EL.tag(expr) == 'string');
 };
 
+EL.isList = function(expr) {
+    return (EL.tag(expr) == 'list');
+};
+EL.isCons = EL.isList;
+
 EL.isFunction = function(expr) {
     return (EL.tag(expr) == 'function');
 };
@@ -644,8 +653,8 @@ EL.inferType = function(exprs) {
 EL.isQuote = function(expr) {
     var tag = EL.tag(expr),
         val = EL.val(expr),
-	car = EL.car(val),
-	name = EL.symbolName(car);
+	car = EL.isCons(val) && EL.car(val),
+	name = car && EL.symbolName(car);
     return (tag == 'list' && name == 'quote');
 };
 
@@ -654,11 +663,15 @@ EL.eval = function(exprs) {
     return e.evalExpressions(exprs);
 };
 
-EL.read = function(string) {
+EL.parse = function(string) {
     var p = new EL.Parser();
     return p.parse(string);
 };
-EL.parse = EL.read;
+
+EL.parseOne = function(string) {
+    return EL.parse(string)[0];
+};
+EL.read = EL.parseOne;
 
 EL.print = function(expr) {
     EL.Util.pp(expr);
@@ -672,8 +685,9 @@ EL.repl = function() {
     var p = new EL.Parser(),
 	e = new EL.Evaluator();
     while (true) {
-	EL.print("elisp> ");
-	EL.print(e.eval(p.parse(readline())));
+	print("elisp> ");
+	var x = readline();
+	EL.print(e.eval(p.parseOne(x)));
     }
 };
 
