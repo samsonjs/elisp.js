@@ -1,6 +1,8 @@
 TODO
 ====
 
+ * TESTS
+
  * implement all Emacs Lisp types/objects
 
  * relational operators: < > <= >= = not
