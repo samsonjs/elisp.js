@@ -210,6 +210,21 @@ EL.listMap = function(cons, fn) {
     return list.length > 0 ? EL.list(list) : EL.nil;
 };
 
+EL.listReduce = function(fn, accum, cons) {
+    var i = 0,
+	n = EL.listLength(cons);
+    while (i < n) {
+	accum = fn(accum, EL.nth(i++, cons));
+    }
+    return accum;
+};
+
+EL.idFunction = function(x){return x;};
+
+EL.unlist = function(cons) {
+    return EL.listReduce(EL.idFunction, [], cons);
+};
+
 EL.nth = function(n, cons) {
     var i = 0,
 	e;
@@ -311,7 +326,10 @@ EL.repl = function() {
 	print("elisp> "); // i don't want a newline, grrrr
 	try {
 	    var line = readline();
-	    if (line && line[0] && line[0].toLowerCase() == 'q') return;
+	    while (!line) {
+		line = readline();
+	    }
+	    if (line.substring(0,1).toLowerCase() == 'q') return;
 	    EL.print(e.eval(p.parseOne(line)));
 	} catch (x) {
 	    if (x.evalError) {
@@ -519,9 +537,6 @@ EL.Parser.prototype.parseExpression = function() {
     else if (c == '"') {
 	value = EL.string(this.parseString());
     }
-    else if (c == '/') {
-	value = EL.regex(this.parseRegex());
-    }
     else if (this.lookingAtNumber()) {
 	value = EL.number(this.parseNumber());
     }
@@ -651,7 +666,7 @@ EL.PrimitiveFunctions = [
 	 body:      function(regex, string, start) {
 	     var index = start ? EL.val(start) : 0,
 		 s = EL.val(string).substring(index),
-		 match = s.match(EL.val(regex)),
+		 match = s.match(new RegExp(EL.val(regex))),
 		 found = match ? EL.number(s.indexOf(match[0])) : EL.nil;
 	     return found;
 	 },
@@ -816,12 +831,12 @@ EL.Evaluator.prototype.setVar = function(symbol, value, create) {
     var valueObject = this.lookupVar(symbol);
     if (!valueObject) {
 	if (create) {
-	    this.defineVar(symbol, value);
+	    this.defineVar(symbol, EL.nil);
+	    valueObject = this.lookupVar(symbol);
 	}
 	else {
 	    this.error('undefined-var', symbol);
 	}
-	return;
     }
     valueObject.value = value;
     this.variables.set(symbol, valueObject);
@@ -923,12 +938,12 @@ EL.Evaluator.prototype.eval = function(expr) {
 	result = value;
     }
     else if (EL.isSetq(expr)) {
-	var val = EL.val(expr),
-	    i = 0,
-            n = val.length;
-	while (i+1 < n && EL.isSymbol(val[i+1])) {
-	    var name = EL.symbolName(val[i+1]),
-                value = this.eval(val[i+2]);
+	var i = 1,
+            n = EL.listLength(expr),
+	    e;
+	while (i < n && EL.isSymbol((e=EL.nth(i,expr)))) {
+	    var name = EL.symbolName(EL.nth(i, expr)),
+                value = this.eval(EL.nth(i+1, expr));
 	    this.setVar(name, value, true);
 	    result = value;
 	    i += 2;
@@ -960,7 +975,10 @@ EL.Evaluator.prototype.eval = function(expr) {
 	}
 	if ((func = this.lookupFunc(EL.symbolName(name)))) {
 	    var self = this;
-	    args = EL.listMap(rest, function(e){return self.eval(e);});
+	    args = EL.listReduce(function(a,e){
+		a.push(self.eval(e));
+		return a;
+	    }, [], rest);
 	    result = this.apply(func, args);
 	}
 	else {
