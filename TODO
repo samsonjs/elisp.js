@@ -5,7 +5,7 @@ TODO
 
  * relational operators: < > <= >= = not
 
- * special forms: lambda, if, cond, and, or, let, let*, letf, letf*
+ * special forms: lambda, cond, and, or, let, let*, letf, letf*
 
  * successfully interpret ~/config/emacs one sexp at a time
 
@@ -22,3 +22,4 @@ TODO
  * merge with Ymacs? (probably not going to happen, would have to
    steal what we can from them)
 
+ * too many things to list at this point ... small steps
