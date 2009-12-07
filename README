@@ -32,6 +32,18 @@ in the browser could be a reality; Ymacs is proof.
 Getting Started
 ===============
 
+Command line
+------------
+
+If you have rlwrap and js then just run el.sh.  If not install rlwrap
+and a JavaScript shell of your choice.  Edit el.sh to reflect whether
+or not you use rlwrap and your shell's name or path.  Then run
+el.sh.  I've only run this under SpiderMonkey.
+
+
+Emacs
+-----
+
 I use Emacs and js-comint.el[3] with inferior-js set to
 /opt/local/bin/js, which is SpiderMonkey[4] from MacPorts[5] on Snow
 Leopard.  C-c b sends the buffer to the JS repl and then I use the
