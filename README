@@ -2,7 +2,7 @@ Emacs Lisp implementation in JavaScript.
 
 Copyright (c) 2009 Sami Samhuri - sami.samhuri@gmail.com
 
-Released under the terms of the MIT license.  See the include file
+Released under the terms of the MIT license.  See the included file
 LICENSE.
 
 Latest version available on github:
@@ -71,7 +71,7 @@ lines.
  * symbol table
    (functions & variables separate)
 
- * lexical scope
+ * (broken) lexical scoping
 
  * expression evaluator
 

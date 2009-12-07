@@ -3,11 +3,11 @@ TODO
 
  * implement all Emacs Lisp types/objects
 
- * relational operators: < > <= >= =
+ * relational operators: < > <= >= = not
 
- * boolean operator: not
+ * special forms: lambda, if, cond, and, or, let, let*, letf, letf*
 
- * special forms: if, cond, and, or, let, let*, letf, letf*
+ * successfully interpret ~/config/emacs one sexp at a time
 
  * primitives: list/cons functions, string functions,
    	       apply, eval,
@@ -15,8 +15,10 @@ TODO
 
  * macros
 
- * dynamic scoping
+ * dynamic scoping (replace the current symbol table entirely)
  
- * merge with Ymacs?
-
  * look into CommonJS
+
+ * merge with Ymacs? (probably not going to happen, would have to
+   steal what we can from them)
+
