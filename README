@@ -46,7 +46,31 @@ el.js.
 Running js under rlwrap and then using load('el.js') works just as
 well if you don't use Emacs but still want readline.  Type EL.repl()
 to start the REPL or evaluate one thing with EL.rep,
-e.g. El.rep("(* 4 3)")
+e.g. EL.rep("(* 4 3)")
+
+or a longer example:
+
+js> EL.repl()
+elisp>
+(defvar *directory* "/Users/sjs" "My home directory")
+elisp>
+*directory*
+["string", "/Users/sjs"]
+elisp> 
+(setq foo 1 bar 2 baz 3)
+["number", 3]
+elisp> 
+(/ (+ foo bar baz) 3)
+["number", 2]
+elisp> 
+(string-match "[a-z]lurgh" (symbol-name 'foo-blurgh))
+["number", 4]
+elisp> 
+q
+js> 
+
+(If you know how to print without a trailing newline in SpiderMonkey
+ please let me know.)
 
 There are other interfaces into the parser and evaluator besides the
 shortcuts.  new EL.Parser([input]) returns a parser object and likewise
@@ -76,9 +100,9 @@ lines.
  * expression evaluator
 
  * simple tagged primitive types
-   (string, symbol, primitive, function, number)
+   (string, symbol, lambda, number, cons)
 
- * special forms for defvar, defun, set, setq, and quote
+ * special forms for defvar, defun, set, setq, if, and quote
 
  * eval/apply for atoms, function calls, and a few special forms
 
