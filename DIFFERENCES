@@ -1,0 +1,20 @@
+
+Differences between the real Emacs Lisp and elisp.js.  It might seem
+silly to start this at such an early stage but at the same time, why
+not start now.  It might help keep a reality check on this project.
+
+
+No Overflow on Math Ops
+=======================
+
+There is no overflow on math operations as the native JavaScript
+number type is used.  Emacs uses at least 29 bits and supports
+integers from -268,435,456 to 268,435,455.
+
+Emacs: (+ 200000000 200000000) #=> -136870912
+       536870913               #=> 1
+
+elisp> (+ 200000000 200000000) #=> ["number", 400000000]
+       536870913               #=> ["number", 536870913]
+
+
