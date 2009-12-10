@@ -6,9 +6,6 @@
 // Released under the terms of the MIT license.  See the included file
 // LICENSE.
 
-/****************************************************************
- **** Parser ****************************************************
- ****************************************************************/
 
 EL.Parser = function(data) {
     this.data = data || '';
@@ -148,23 +145,65 @@ EL.Parser.prototype.parseRegex = function() {
     }, true /* consume terminator */));
 };
 
+
+// In Emacs Lisp a trailing . is allowed on integers.
+// Valid kinds of numbers we parse here are:
+//
+//   * Integers of the form 42, +17, -300, 7300. (trailing .), +1. and
+//     -1.
+// 
+//   * Floating point numbers of the form -4.5, 0.0, and +933825.3450133492
+// 
+//   * Exponential notation for floats, e.g. 1.5e2 (150.0) or 420e-1 (42.0)
+//     (There is no trailing . allowed anywhere in exponent notation)
 EL.Parser.prototype.parseNumber = function() {
-    var sign = this.peek() == '-' ? this.consumeChar() : '+',
+    var value = this.parseIntOrFloat(),
+	exponentAllowed = value === parseInt(value),
+	exp;
+
+    // now check for an exponent
+    if (this.exponentAllowed && (this.peek() == 'e' || this.peek() == 'E')) {
+	this.consumeChar();
+
+	// Technically this is an error as a float is not allowed for exponents
+	// but the regex is strict enough to keep us from trying to do that.
+	exp = this.parseIntOrFloat();
+
+	value *= Math.pow(10, exp);
+    }
+
+    return value;
+};
+
+// Pack int and float parsing together for simplicity's sake.
+EL.Parser.prototype.parseIntOrFloat = function() {
+    this.exponentAllowed = true;
+    var sign = this.peek() == '-' || this.peek() == '+' ? this.consumeChar() : '+',
 	value = this.parseUntil(/[^\d]/, 0, function(n,c) {
             return n*10 + parseInt(c);
         });
+
+    // if we see a . there might be a float to parse
     if (this.peek() == '.') {
+	this.exponentAllowed = false;
 	this.consumeChar();
-	var decimal = this.parseUntil(/[^\d]/, '', function(s,c) {return s + c;});
-	value = parseFloat('' + value + '.' + decimal);
+	if (this.peek() && this.peek().match(/\d/)) {
+	    var decimal = this.parseUntil(/[^\d]/, '', function(s,c) {return s + c;});
+	    value = parseFloat('' + value + '.' + decimal);
+	}
     }
-    return sign == '-' ? -1*value : value;
+
+    return sign == '-' ? -1*value : value;    
 };
 
+// These regexes matches all the inputs specified above parseNumber.
 EL.Parser.prototype.lookingAtNumber = function() {
     var pos = this.pos,
 	rest = this.rest(),
-	match = rest.match(/^(-)?\d+(\.\d+)?[\s)\n]/) || rest.match(/^(-)?\d+(\.\d+)?$/);
+	match = rest.match(/^[+-]?\d+(\.\d*)?[)\s\n]/)
+	     || rest.match(/^[+-]?\d+(\.\d*)?$/)
+	     || rest.match(/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?[)\s\n]/)
+	     || rest.match(/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/);
     return (match != null);
 };
 
