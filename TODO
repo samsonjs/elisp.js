@@ -3,6 +3,8 @@ TODO
 
  * TESTS
 
+ * look into na-cl for better performance
+
  * implement all Emacs Lisp types/objects
 
  * relational operators: < > <= >= = not

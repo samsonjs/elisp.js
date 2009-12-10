@@ -35,10 +35,16 @@ Getting Started
 Command line
 ------------
 
-If you have rlwrap and js then just run el.sh.  If not install rlwrap
-and a JavaScript shell of your choice.  Edit el.sh to reflect whether
-or not you use rlwrap and your shell's name or path.  Then run
-el.sh.  I've only run this under SpiderMonkey.
+If you have rlwrap and js then just run el.sh.  If not install a
+JavaScript shell of your choice, and I recommend you install rlwrap
+(readline wrap).  Edit el.sh to reflect whether or not you use rlwrap
+and your shell's name or path.  Then run el.sh.  I've only run this
+under SpiderMonkey so I have no idea if it works under any other
+implementations.  Glad to accept info and/or patches.
+
+Type a 'Q' or 'q' to quit the repl.  Or anything that starts with Q,
+like 'quickly quit lisp!'.  (If lisp freaks out because you entered ^D
+or something ^C or ^Z should still get you out.)
 
 
 Emacs
@@ -46,24 +52,22 @@ Emacs
 
 I use Emacs and js-comint.el[3] with inferior-js set to
 /opt/local/bin/js, which is SpiderMonkey[4] from MacPorts[5] on Snow
-Leopard.  C-c b sends the buffer to the JS repl and then I use the
-EL.rep (read-eval-print), EL.repl, EL.parse, EL.eval, and EL.print
-functions defined in the section titled Lisp Support near the end of
-el.js.
+Leopard.
 
 [3] http://js-comint-el.sourceforge.net/
 [4] http://www.mozilla.org/js/spidermonkey/
 [5] http://www.macports.org/
 
-Running js under rlwrap and then using load('el.js') works just as
-well if you don't use Emacs but still want readline.  Type EL.repl()
-to start the REPL or evaluate one thing with EL.rep,
-e.g. EL.rep("(* 4 3)")
+For loading code C-c b sends the buffer to the JS repl.  I also use
+the EL.rep (read-eval-print), EL.parse, EL.eval, and EL.print
+functions defined in el/repl.js
 
-or a longer example:
+Here's an example:
 
-js> EL.repl()
-elisp>
+% cd Projects/elisp.js
+% rlwrap js
+js> load('el.js')
+elisp> 
 (defvar *directory* "/Users/sjs" "My home directory")
 elisp>
 *directory*
@@ -101,10 +105,10 @@ What's here?
 Not much compared to the real thing but it's a decent start for < 1000
 lines.
 
- * parser
-   (ints, floats, strings, symbols, lists, quoted expressions)
+ * parser/reader. there's no lexing to tokens we go straight to tagged
+   data.  (ints, floats, strings, symbols, lists, quoted expressions)
 
- * symbol table
+ * symbol table, but needs to be replaced ASAP.
    (functions & variables separate)
 
  * (broken) lexical scoping
