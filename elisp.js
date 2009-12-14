@@ -25,23 +25,24 @@
 
 
 // our namespace
-var EL = function(){};
+var elisp = function(){};
 
-load('el/init.js');  // simple init system
-load('el/jsExt.js'); // a few extensions to native types
-load('el/util.js');  // utilities
+
+load('elisp/init.js');  // simple init system
+load('elisp/jsExt.js'); // a few extensions to native types
+load('elisp/util.js');  // utilities
 
 // main lisp system
-load('el/types.js');
-load('el/list.js');
-load('el/symtab.js');
-load('el/parser.js');
-load('el/evaluator.js');
-load('el/primitives.js');
-load('el/repl.js');
+load('elisp/types.js');
+load('elisp/list.js');
+load('elisp/symtab.js');
+load('elisp/parser.js');
+load('elisp/evaluator.js');
+load('elisp/primitives.js');
+load('elisp/repl.js');
 
 // everything is defined, initialize
-EL.init();
+elisp.init();
 
 // q to quit
-EL.repl();
+elisp.repl();

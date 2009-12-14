@@ -7,7 +7,7 @@
 // LICENSE.
 
 // Just a little sugar
-EL.initHook(function() {
+elisp.initHook(function() {
     Array.prototype.each = function(fn) {
 	var i = 0,
 	n = this.length;
@@ -35,7 +35,7 @@ EL.initHook(function() {
 
     // A typeOf function that distinguishes between objects, arrays,
     // and null.
-    EL.typeOf = function(value) {
+    elisp.typeOf = function(value) {
 	var s = typeof value;
 	if (s === 'object') {
             if (value) {
@@ -52,7 +52,7 @@ EL.initHook(function() {
     };
 
     // TODO throw something more informative
-    EL.assert = function(condition, message) {
+    elisp.assert = function(condition, message) {
 	if (!condition()) {
             throw("assertion failed: " + condition + " (" + message + ")");
 	}

@@ -7,30 +7,30 @@
 // LICENSE.
 
 
-EL.Evaluator = function(exprs) {
+elisp.Evaluator = function(exprs) {
     this.expressions = exprs;
-    this.variables = new EL.SymbolTable(EL.PrimitiveVariables);
-    this.functions = new EL.SymbolTable(EL.PrimitiveFunctions);
+    this.variables = new elisp.SymbolTable(elisp.PrimitiveVariables);
+    this.functions = new elisp.SymbolTable(elisp.PrimitiveFunctions);
 };
 
-EL.Evaluator.Error = function(name, message, expr) {
+elisp.Evaluator.Error = function(name, message, expr) {
     this.evalError = true;
     this.name = name;
     this.message = message;
     this.expression = expr;
 };
 
-EL.Evaluator.Error.messages = {
+elisp.Evaluator.Error.messages = {
     'not-expr': "not an expression",
     'undefined-func': "undefined function",
     'undefined-var': "variable not defined"
 };
 
-EL.Evaluator.prototype.error = function(name, expr) {
-    throw(new EL.Evaluator.Error(name, EL.Evaluator.Error.messages[name], expr));
+elisp.Evaluator.prototype.error = function(name, expr) {
+    throw(new elisp.Evaluator.Error(name, elisp.Evaluator.Error.messages[name], expr));
 };
 
-EL.Evaluator.prototype.evalExpressions = function(expressions) {
+elisp.Evaluator.prototype.evalExpressions = function(expressions) {
     var exprs = expressions || this.expressions,
 	i = 0,
 	n = exprs.length,
@@ -44,7 +44,7 @@ EL.Evaluator.prototype.evalExpressions = function(expressions) {
 		if (e.expression) {
 		    print("got: " + e.expression);
 		}
-		result = EL.nil;
+		result = elisp.nil;
 		break;
 	    }
 	    else {
@@ -52,39 +52,39 @@ EL.Evaluator.prototype.evalExpressions = function(expressions) {
 	    }
 	}
     }
-//     EL.Util.pp(result);
+//     elisp.Util.pp(result);
     return result;
 };
 
-EL.Evaluator.prototype.lookupVar = function(symbol) {
+elisp.Evaluator.prototype.lookupVar = function(symbol) {
     return this.variables.lookup(symbol);
 };
 
-EL.Evaluator.prototype.lookupFunc = function(symbol) {
+elisp.Evaluator.prototype.lookupFunc = function(symbol) {
     return this.functions.lookup(symbol);
 };
 
-EL.Evaluator.prototype.apply = function(func, args) {
+elisp.Evaluator.prototype.apply = function(func, args) {
     var result;
     if (func.type === 'primitive') {
 // 	print('APPLY: ');
-// 	EL.print(func);
+// 	elisp.print(func);
 // 	print('WITH: ');
-// 	EL.print(args);
+// 	elisp.print(args);
 // 	print('------');
 	result = func.body.apply(this, args);
     }
     else {
 	this.functions.pushScope();
-	this.variables.pushScope(EL.listMap(func.params, function(e, i){
-		var name = EL.symbolName(e),
+	this.variables.pushScope(elisp.listMap(func.params, function(e, i){
+		var name = elisp.symbolName(e),
 		    value = {
 			type: 'variable',
 			value: this.eval(args[i])
 		    };
                 return [name, value];
 	    }));
-	result = EL.listLast(EL.listMap(func.body,
+	result = elisp.listLast(elisp.listMap(func.body,
 	                     function(e) {return this.eval(e); }));
 	this.functions.popScope();
 	this.variables.popScope();
@@ -92,16 +92,16 @@ EL.Evaluator.prototype.apply = function(func, args) {
     return result;
 };
 
-EL.Evaluator.prototype.eval = function(expr) {
-//     print("EVAL: " + EL.typeOf(expr));
-//     EL.print(expr);
+elisp.Evaluator.prototype.eval = function(expr) {
+//     print("EVAL: " + elisp.typeOf(expr));
+//     elisp.print(expr);
     var result, x,
-	tag = EL.tag(expr);
-    if (EL.isAtom(expr)) {
+	tag = elisp.tag(expr);
+    if (elisp.isAtom(expr)) {
 	result = expr;
     }
-    else if (EL.isSymbol(expr)) {
-	var name = EL.val(expr);
+    else if (elisp.isSymbol(expr)) {
+	var name = elisp.val(expr);
 	x = this.lookupVar(name);
 	if (x == null) this.error('undefined-var', name);
 	result = x.value;
@@ -112,72 +112,72 @@ EL.Evaluator.prototype.eval = function(expr) {
     ///////////////////
     // (many could be in lisp when there are macros) //
 
-    else if (EL.isQuote(expr)) {
-	result = EL.cdr(expr);
+    else if (elisp.isQuote(expr)) {
+	result = elisp.cdr(expr);
     }
-    else if (EL.isDefVar(expr)) {
-	var name = EL.symbolName(EL.cadr(expr)), // 2nd param
-	    value = this.eval(EL.caddr(expr)),   // 3rd param
-	    docstring = EL.cadddr(expr);         // 4th param
+    else if (elisp.isDefVar(expr)) {
+	var name = elisp.symbolName(elisp.cadr(expr)), // 2nd param
+	    value = this.eval(elisp.caddr(expr)),   // 3rd param
+	    docstring = elisp.cadddr(expr);         // 4th param
 	// TODO check for re-definitions
 	this.defineVar(name, value, docstring);
-	result = EL.nil;
+	result = elisp.nil;
     }
-    else if (EL.isDefFunc(expr)) {
-	var name = EL.symbolName(EL.nth(1, expr)),
-	    params = EL.nth(2, expr),
-	    d = EL.nth(3, expr),
-	    docstring = EL.isString(d) && d,
-	    body = EL.nthcdr(docstring ? 3 : 2, expr);
+    else if (elisp.isDefFunc(expr)) {
+	var name = elisp.symbolName(elisp.nth(1, expr)),
+	    params = elisp.nth(2, expr),
+	    d = elisp.nth(3, expr),
+	    docstring = elisp.isString(d) && d,
+	    body = elisp.nthcdr(docstring ? 3 : 2, expr);
 	this.defineFunc(name, params, body, docstring);
-	result = EL.nil;
+	result = elisp.nil;
     }
-    else if (EL.isSet(expr)) {
-	var val = EL.val(expr),
-	    name = EL.symbolName(val[1]),
+    else if (elisp.isSet(expr)) {
+	var val = elisp.val(expr),
+	    name = elisp.symbolName(val[1]),
 	    value = this.eval(val[2]);
 	this.setVar(name, value);
 	result = value;
     }
-    else if (EL.isSetq(expr)) {
+    else if (elisp.isSetq(expr)) {
 	var i = 1,
-            n = EL.listLength(expr),
+            n = elisp.listLength(expr),
 	    e;
-	while (i < n && EL.isSymbol((e=EL.nth(i,expr)))) {
-	    var name = EL.symbolName(EL.nth(i, expr)),
-                value = this.eval(EL.nth(i+1, expr));
+	while (i < n && elisp.isSymbol((e=elisp.nth(i,expr)))) {
+	    var name = elisp.symbolName(elisp.nth(i, expr)),
+                value = this.eval(elisp.nth(i+1, expr));
 	    this.setVar(name, value, true);
 	    result = value;
 	    i += 2;
         }
     }
-    else if (EL.isIf(expr)) {
-	var val = EL.val(expr),
+    else if (elisp.isIf(expr)) {
+	var val = elisp.val(expr),
 	    condition = this.eval(val[1]),
 	    trueBlock = val[2],
 	    nilBlock = val[3];
 	result = this.doIf(condition, trueBlock, nilBlock);
     }
-    else if (EL.isCond(expr)) {
-	var val = EL.val(expr),
+    else if (elisp.isCond(expr)) {
+	var val = elisp.val(expr),
 	    list = val[1],
-	    condition = EL.car(list),
-	    body = EL.cdr(list),
+	    condition = elisp.car(list),
+	    body = elisp.cdr(list),
 	    rest = val.slice(2);
 	result = this.doCond(exprs);
     }
 
     // function application
-    else if (EL.isCons(expr)) {
-	var name = EL.car(expr),
-	    rest = EL.cdr(expr),
+    else if (elisp.isCons(expr)) {
+	var name = elisp.car(expr),
+	    rest = elisp.cdr(expr),
 	    func, args;
-	while (!EL.isSymbol(name)) {
+	while (!elisp.isSymbol(name)) {
 	    name = this.eval(name);
 	}
-	if ((func = this.lookupFunc(EL.symbolName(name)))) {
+	if ((func = this.lookupFunc(elisp.symbolName(name)))) {
 	    var self = this;
-	    args = EL.listReduce(function(a,e){
+	    args = elisp.listReduce(function(a,e){
 		a.push(self.eval(e));
 		return a;
 	    }, [], rest);
@@ -195,7 +195,7 @@ EL.Evaluator.prototype.eval = function(expr) {
 };
 
 
-EL.Evaluator.prototype.defineVar = function(symbol, value, docstring) {
+elisp.Evaluator.prototype.defineVar = function(symbol, value, docstring) {
     this.variables.define(symbol, {
 	type: 'variable',
 	value: value,
@@ -203,11 +203,11 @@ EL.Evaluator.prototype.defineVar = function(symbol, value, docstring) {
     });
 };
 
-EL.Evaluator.prototype.setVar = function(symbol, value, create) {
+elisp.Evaluator.prototype.setVar = function(symbol, value, create) {
     var valueObject = this.lookupVar(symbol);
     if (!valueObject) {
 	if (create) {
-	    this.defineVar(symbol, EL.nil);
+	    this.defineVar(symbol, elisp.nil);
 	    valueObject = this.lookupVar(symbol);
 	}
 	else {
@@ -218,7 +218,7 @@ EL.Evaluator.prototype.setVar = function(symbol, value, create) {
     this.variables.set(symbol, valueObject);
 };
 
-EL.Evaluator.prototype.defineFunc = function(symbol, params, body, docstring) {
+elisp.Evaluator.prototype.defineFunc = function(symbol, params, body, docstring) {
     this.functions.define(symbol, {
 	type: 'lambda',
 	name: symbol,
@@ -228,14 +228,14 @@ EL.Evaluator.prototype.defineFunc = function(symbol, params, body, docstring) {
     });
 };
 
-EL.Evaluator.prototype.doIf = function(condition, trueBlock, nilBlock) {
-    return EL.isNil(condition) ? this.eval(nilBlock) : this.eval(trueBlock);
+elisp.Evaluator.prototype.doIf = function(condition, trueBlock, nilBlock) {
+    return elisp.isNil(condition) ? this.eval(nilBlock) : this.eval(trueBlock);
 };
 
-EL.Evaluator.prototype.doCond = function(exprs) {
+elisp.Evaluator.prototype.doCond = function(exprs) {
     print('----- COND (doCond) -----');
-    EL.print(exprs);
-    return EL.nil;
+    elisp.print(exprs);
+    return elisp.nil;
 };
 
 

@@ -10,10 +10,10 @@
  **** Utilities *************************************************
  ****************************************************************/
 
-EL.Util = function(){};
+elisp.Util = function(){};
 
 // aka foldl
-EL.Util.reduce = function(fn, accum, list) {
+elisp.Util.reduce = function(fn, accum, list) {
     var i = 0,
 	n = list.length;
     while (i < n) {
@@ -22,7 +22,7 @@ EL.Util.reduce = function(fn, accum, list) {
     return accum;
 };
 
-EL.Util.foldr = function(fn, end, list) {
+elisp.Util.foldr = function(fn, end, list) {
     var i = list.length-1;
     while (i >= 0) {
 	end = fn(list[i--], end);
@@ -30,7 +30,7 @@ EL.Util.foldr = function(fn, end, list) {
     return end;
 };
 
-EL.Util.shallowCopy = function(list) {
+elisp.Util.shallowCopy = function(list) {
     var i = 0,
 	n = list.length,
 	result = [];
@@ -42,7 +42,7 @@ EL.Util.shallowCopy = function(list) {
 
 
 // i'm sorry
-EL.Util.pp = function(x, indent, key, noprint) {
+elisp.Util.pp = function(x, indent, key, noprint) {
     if (indent === undefined) {
 	indent = 0;
     }
@@ -76,7 +76,7 @@ EL.Util.pp = function(x, indent, key, noprint) {
 // 	space += "    ";
 //     }
 	
-    switch (EL.typeOf(x)) {
+    switch (elisp.typeOf(x)) {
     case 'object':
 	if (key) {
 	    printB(space + key + ': {');
@@ -85,7 +85,7 @@ EL.Util.pp = function(x, indent, key, noprint) {
 	    printB(space + ' {');
 	}
 	for (var a in x) {
-	    printB(EL.Util.pp(x[a], 1+indent, a, true));
+	    printB(elisp.Util.pp(x[a], 1+indent, a, true));
 	    printB(', ');
 	}
 	printB(space + "} ");
@@ -102,8 +102,8 @@ EL.Util.pp = function(x, indent, key, noprint) {
 
     case 'array':
 	// nil special case
-        if (x.length == 2 && EL.tag(x) == 'symbol' && EL.val(x) == 'nil') {
-            return EL.Util.pp(null, indent, key);
+        if (x.length == 2 && elisp.tag(x) == 'symbol' && elisp.val(x) == 'nil') {
+            return elisp.Util.pp(null, indent, key);
         }
 
 	if (key) {
@@ -115,7 +115,7 @@ EL.Util.pp = function(x, indent, key, noprint) {
 	var n = x.length, i = 0;
 	while (i < n) {
 	    if (i > 0) printB(', ');
-	    printB(EL.Util.pp(x[i++], 1+indent, undefined, true));
+	    printB(elisp.Util.pp(x[i++], 1+indent, undefined, true));
 	}
 	printB(space + ']');
 	break;

@@ -10,14 +10,14 @@
 // of the file we call init when everything is defined, regardless of
 // the order it appears in the file.  The order of the hooks still
 // matters though, it's not fool-proof.
-EL._initHooks = [];
-EL.initHook = function(hook) {
-    EL._initHooks.push(hook);
+elisp._initHooks = [];
+elisp.initHook = function(hook) {
+    elisp._initHooks.push(hook);
 };
-EL.init = function() {
+elisp.init = function() {
     var i = 0,
-        n = EL._initHooks.length;
+        n = elisp._initHooks.length;
     while (i < n) {
-        EL._initHooks[i++].call();
+        elisp._initHooks[i++].call();
     }
 };

@@ -10,13 +10,13 @@
  **** Symbol Table **********************************************
  ****************************************************************/
 
-EL.SymbolTable = function(bindings) {
+elisp.SymbolTable = function(bindings) {
     this.symbols = [[]];
     this.level = 0;
     if (bindings) this.define(bindings);
 };
 
-EL.SymbolTable.prototype.lookupWithScope = function(name) {
+elisp.SymbolTable.prototype.lookupWithScope = function(name) {
     var i = this.level,
 	symbol;
     while (i >= 0) {
@@ -29,14 +29,14 @@ EL.SymbolTable.prototype.lookupWithScope = function(name) {
     return null;
 };
 
-EL.SymbolTable.prototype.lookup = function(name) {
+elisp.SymbolTable.prototype.lookup = function(name) {
     var pair = this.lookupWithScope(name);
     return pair && pair[1];
 };
 
 // store the given symbol/value pair in the symbol table at the current level.
-EL.SymbolTable.prototype.define = function(name, value) {
-    if (value === undefined && EL.typeOf(name) == 'array') {	
+elisp.SymbolTable.prototype.define = function(name, value) {
+    if (value === undefined && elisp.typeOf(name) == 'array') {	
 	var bindings = name,
 	    i = 0,
 	    n = bindings.length,
@@ -55,7 +55,7 @@ EL.SymbolTable.prototype.define = function(name, value) {
     }
 };
 
-EL.SymbolTable.prototype.pushScope = function(bindings) {
+elisp.SymbolTable.prototype.pushScope = function(bindings) {
 //     print('>>> pushing scope <<<');
 //     print('>>> level going from ' + this.level + ' to ' + (1+this.level));
 //     print(bindings);
@@ -63,11 +63,11 @@ EL.SymbolTable.prototype.pushScope = function(bindings) {
     if (bindings) this.define(bindings);
 };
 
-EL.SymbolTable.prototype.popScope = function() {
+elisp.SymbolTable.prototype.popScope = function() {
     --this.level;
 };
 
-EL.SymbolTable.prototype.set = function(name, value) {
+elisp.SymbolTable.prototype.set = function(name, value) {
     var pair = this.lookupWithScope(name),
 	level = pair[0];
     this.symbols[level][name] = value;
