@@ -7,10 +7,6 @@
 // LICENSE.
 
 
-/****************************************************************
- **** Primitives ************************************************
- ****************************************************************/
-
 EL.PrimitiveVariables = [
     ['t', {
         type: 'variable',
@@ -24,82 +20,84 @@ EL.PrimitiveVariables = [
     }]
 ];
 
-// 'this' is bound to the EL.Evaluator object
-EL.PrimitiveFunctions = [
-    ['symbol-name', {
-	 type:      'primitive',
-	 name:      'symbol-name',
-	 params:    ['symbol'],
-	 body:      function(symbol) { return EL.string(EL.val(symbol)); },
-	 docstring: "Return a symbol's name, a string."
-    }],
+EL.PrimitiveFunctions = [];
 
-    ['string-match', {
-	 type:      'primitive',
-	 name:      'string-match',
-	 params:    ['regex', 'string', '&optional', 'start'],
-	 body:      function(regex, string, start) {
+// 'this' is bound to the EL.Evaluator object when executing primitve functions
+EL.definePrimitive = function(name, params, body, docstring) {
+    EL.PrimitiveFunctions.push([name, {
+	type: 'primitive',
+	name: name,
+	params: params,       // unused right now but should be checked
+	docstring: docstring,
+	body: body
+    }]);
+};
+
+EL.notFunc = function(fn) {
+    return function(x){ return !fn(x); };
+};
+
+EL.makePrimitiveBooleanFunc = function(fn) {
+    return function(x){ return fn(x) ? EL.t : EL.nil; };
+};
+
+EL._definePrimitives = function() {
+EL.definePrimitive('consp', ['symbol'], EL.makePrimitiveBooleanFunc(EL.isCons),
+    "Return T if symbol is a cons, nil otherwise.");
+
+EL.definePrimitive('atom', ['symbol'], EL.makePrimitiveBooleanFunc(EL.isAtom),
+    "Return T if symbol is not a cons or is nil, nil otherwise.");
+
+EL.definePrimitive('symbol-name', ['symbol'],
+    function(symbol) { return EL.string(EL.val(symbol)); },
+    "Return a symbol's name, a string.");
+
+EL.definePrimitive('string-match', ['regex', 'string', '&optional', 'start'],
+    function(regex, string, start) {
 	     var index = start ? EL.val(start) : 0,
 		 s = EL.val(string).substring(index),
 		 match = s.match(new RegExp(EL.val(regex))),
 		 found = match ? EL.number(s.indexOf(match[0])) : EL.nil;
-	     return found;
-	 },
-	 docstring: "Return the index of the char matching regex in string, beginning from start if available."
-    }],
+	     return found;},
+    "Return the index of the char matching regex in string, beginning from start if available.");
 
-    ['+', {
-	 type:      'primitive',
-	 name:      '+',
-	 params:    [/* ... */],
-	 body:      function() {
+// Right now a single string in the arg list will cause all the arguments
+// to be converted to strings similar to JavaScript.  These
+// semantics suck and should change, not only for real emacs lisp compatibility.
+EL.definePrimitive('+', [/*...*/],
+    function() {
 	     var args = EL.Util.shallowCopy(arguments),
 		 initial = EL.inferType(args),
 		 type = initial[0];
 	     return EL.Util.reduce(function(sum, n) {
 		     return [type, EL.val(sum) + EL.val(n)];
-	         }, initial, args);
-	 },
-	 docstring: "add two numbers"
-    }],
-    ['-', {
-	 type:      'primitive',
-	 name:      '-',
-	 params:    [/* ... */],
-	 body:      function() {
-	     return EL.Util.foldr(function(diff, n) {
-		     return EL.number(EL.val(diff) - EL.val(n));
-	         }, EL.number(0), EL.Util.shallowCopy(arguments));
-	 },
-	 docstring: "subtract two numbers"
-    }],
-    ['*', {
-	 type:      'primitive',
-	 name:      '*',
-	 params:    [/* ... */],
-	 body:      function() {
+	         }, initial, args);},
+    "add two numbers");
+
+EL.definePrimitive('-', [/*...*/],
+    function() {
+            return EL.Util.foldr(function(diff, n) {
+		return EL.number(EL.val(diff) - EL.val(n));
+	    }, EL.number(0), EL.Util.shallowCopy(arguments));},
+    "subtract two numbers");
+
+EL.definePrimitive('*', [/*...*/],
+    function() {
 	     return EL.Util.reduce(function(prod, n) {
 		     return EL.number(EL.val(prod) * EL.val(n));
-	         }, EL.number(1), EL.Util.shallowCopy(arguments));
-	 },
-	 docstring: "multiply two numbers"
-    }],
-    ['/', {
-	 type:      'primitive',
-	 name:      '/',
-	 params:    [/* ... */],
-	 body:      function() {
+	         }, EL.number(1), EL.Util.shallowCopy(arguments));},
+    "multiply two numbers");
+
+EL.definePrimitive('/', [/*...*/],
+    function() {
 	     return EL.Util.foldr(function(quot, n) {
 		     return EL.number(EL.val(quot) / EL.val(n));
 	         }, EL.number(1), EL.Util.shallowCopy(arguments));
 	 },
-	 docstring: "divide two numbers"
-    }],
-    ['print', {
-	 type:      'primitive',
-	 name:      'print',
-	 params:    ['x'],
-	 body:      function(x, tostring) {
+    "divide two numbers");
+
+EL.definePrimitive('print', ['x'],
+    function(x, tostring) {
 	     var buffer = "",
 		 tag = EL.tag(x);
 	     function p(s) {
@@ -124,10 +122,6 @@ EL.PrimitiveFunctions = [
 	     }
 	     return EL.nil;
 	 },
-	 docstring: "print an expression"    
-     }]
-];
-
-
-/****************************************************************
- ****************************************************************/
+    "print an expression");
+};
+EL.initHook(EL._definePrimitives);

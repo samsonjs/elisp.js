@@ -77,7 +77,7 @@ EL.isList = function(expr) {
 };
 
 EL.isAtom = function(expr) {
-    return EL.isString(expr) || EL.isNumber(expr) || EL.isRegex(expr);
+    return !EL.isCons(expr);
 };
 
 EL.inferType = function(exprs) {

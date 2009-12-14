@@ -3,9 +3,17 @@ TODO
 
  * TESTS
 
+ * create a separate float type
+ 
+ * parse simple character literals e.g. ?a ?\s ?\\ ... the rest can wait.
+
+ * parse all the symbols on this page:
+http://www.gnu.org/software/emacs/manual/html_node/elisp/Symbol-Type.html#Symbol-Type
+
  * look into na-cl for better performance
 
- * implement all Emacs Lisp types/objects
+ * implement all Emacs Lisp types/objects on this page:
+http://www.gnu.org/software/emacs/manual/html_node/elisp/Programming-Types.html#Programming-Types
 
  * relational operators: < > <= >= = not
 

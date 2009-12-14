@@ -156,6 +156,9 @@ EL.Parser.prototype.parseRegex = function() {
 // 
 //   * Exponential notation for floats, e.g. 1.5e2 (150.0) or 420e-1 (42.0)
 //     (There is no trailing . allowed anywhere in exponent notation)
+//
+// Binary, octal, hex, or arbitrary radix integers not yet parsed.
+//  (e.g. #x100 == #o400 == #b100000000 == #24rag
 EL.Parser.prototype.parseNumber = function() {
     var value = this.parseIntOrFloat(),
 	exponentAllowed = value === parseInt(value),
@@ -179,41 +182,60 @@ EL.Parser.prototype.parseNumber = function() {
 EL.Parser.prototype.parseIntOrFloat = function() {
     this.exponentAllowed = true;
     var sign = this.peek() == '-' || this.peek() == '+' ? this.consumeChar() : '+',
+	value;
+
+    // There may or may not be an integer part of the number.
+    if (this.peek() != '.') {
 	value = this.parseUntil(/[^\d]/, 0, function(n,c) {
             return n*10 + parseInt(c);
         });
+    }
 
     // if we see a . there might be a float to parse
     if (this.peek() == '.') {
-	this.exponentAllowed = false;
 	this.consumeChar();
 	if (this.peek() && this.peek().match(/\d/)) {
 	    var decimal = this.parseUntil(/[^\d]/, '', function(s,c) {return s + c;});
-	    value = parseFloat('' + value + '.' + decimal);
+	    // value may be undefined at this point
+	    value = parseFloat('' + (value||'') + '.' + decimal);
+	}
+	else {
+	    this.exponentAllowed = false;
 	}
     }
+
+    // Value can technically be undefined but the regex prevents it from
+    // ever being so.
 
     return sign == '-' ? -1*value : value;    
 };
 
 // These regexes matches all the inputs specified above parseNumber.
+// They are paramount as they exclude some invalid cases the parser
+// itself doesn't catch.  Sloppy, should be fixed in the future.
+// The reason there are so many is that we can't match the end of
+// string or some chars in the same regex.
+//
+// TODO: pick up Friedl and find a way to consolidate these.
 EL.Parser.prototype.lookingAtNumber = function() {
     var pos = this.pos,
 	rest = this.rest(),
 	match = rest.match(/^[+-]?\d+(\.\d*)?[)\s\n]/)
 	     || rest.match(/^[+-]?\d+(\.\d*)?$/)
 	     || rest.match(/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?[)\s\n]/)
-	     || rest.match(/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/);
+	     || rest.match(/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/)
+	     || rest.match(/^[+-]?(\d+)?\.\d+([eE][+-]?\d+)?[)\s\n]/)
+	     || rest.match(/^[+-]?(\d+)?\.\d+([eE][+-]?\d+)?$/);
     return (match != null);
 };
 
 EL.Parser.prototype.lookingAtCons = function() {
     var orig_pos = this.pos,
 	_ = this.consumeChar(),
-	_ = this.parseExpression(),
-	cdr = this.parseExpression();
+	__ = _ && this.peek() && this.parseExpression(),
+	cdr = __ && this.peek() &&this.parseExpression();
     this.pos = orig_pos; // rewind, like it never happened.
-    return EL.typeOf(cdr) == 'array' && EL.isSymbol(cdr) && EL.val(cdr) == '.';
+    return _ == ')' || cdr && EL.typeOf(cdr) == 'array' && EL.isSymbol(cdr) && EL.val(cdr) == '.';
 };
 
 EL.Parser.prototype.parseExpression = function() {
