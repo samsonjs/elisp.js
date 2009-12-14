@@ -31,7 +31,9 @@ EL.repl = function() {
     var p = new EL.Parser(),
 	e = new EL.Evaluator();
     while (true) {
-	print("elisp> "); // i don't want a newline, grrrr
+	if (!EL.hidePrompt) {
+	    print("elisp> "); // i don't want a newline, grrrr
+	}
 	try {
 	    var line = readline();
 	    while (!line) {

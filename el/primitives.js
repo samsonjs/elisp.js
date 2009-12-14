@@ -123,5 +123,9 @@ EL.definePrimitive('print', ['x'],
 	     return EL.nil;
 	 },
     "print an expression");
+
+EL.definePrimitive('hide-prompt', ['yes-or-no'],
+    function(bool){ EL.hidePrompt = !EL.isNil(bool); },
+    "Call with T to hide the prompt or nil to show it.");
 };
 EL.initHook(EL._definePrimitives);
