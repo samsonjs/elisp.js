@@ -29,8 +29,6 @@ http://www.gnu.org/software/emacs/manual/html_node/elisp/Programming-Types.html#
 
  * dynamic scoping (replace the current symbol table entirely)
  
- * look into CommonJS
-
  * merge with Ymacs? (probably not going to happen, would have to
    steal what we can from them)
 
