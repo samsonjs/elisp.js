@@ -1,3 +1,3 @@
 #!/bin/sh
 
-rlwrap /opt/local/bin/js elisp.js
+NARWHAL_ENGINE=jsc rlwrap js repl.js

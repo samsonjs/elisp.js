@@ -6,25 +6,32 @@
 // Released under the terms of the MIT license.  See the included file
 // LICENSE.
 
+var init = require('elisp/init'),
+    type = require('elisp/types'),
+    utils = require('elisp/utils');
 
-elisp.PrimitiveVariables = [
+var PrimitiveVariables = [
     ['t', {
         type: 'variable',
-	value: ['symbol', 't'],
+	value: type.T,
 	docstring: "true"
     }],
     ['nil', {
         type: 'variable',
-	value: ['symbol', 'nil'],
+	value: type.NIL,
 	docstring: "nil"
     }]
 ];
+exports.PrimitiveVariables = PrimitiveVariables;
 
-elisp.PrimitiveFunctions = [];
 
-// 'this' is bound to the elisp.Evaluator object when executing primitve functions
-elisp.definePrimitive = function(name, params, body, docstring) {
-    elisp.PrimitiveFunctions.push([name, {
+var PrimitiveFunctions = [];
+exports.PrimitiveFunctions = PrimitiveFunctions;
+
+// 'this' is bound to the evaluator.Evaluator object when executing primitve functions
+var definePrimitive = function(name, params, body, docstring) {
+//    print('*** DEFINING: ' + name);
+    PrimitiveFunctions.push([name, {
 	type: 'primitive',
 	name: name,
 	params: params,       // unused right now but should be checked
@@ -32,100 +39,95 @@ elisp.definePrimitive = function(name, params, body, docstring) {
 	body: body
     }]);
 };
+exports.definePrimitive = definePrimitive;
 
-elisp.notFunc = function(fn) {
+var notFunc = function(fn) {
     return function(x){ return !fn(x); };
 };
+exports.notFunc = notFunc;
 
-elisp.makePrimitiveBooleanFunc = function(fn) {
-    return function(x){ return fn(x) ? elisp.t : elisp.nil; };
+var makePrimitiveBooleanFunc = function(fn) {
+    return function(x){ return x[fn]() ? type.T : type.NIL; };
 };
+exports.makePrimitiveBooleanFunc = makePrimitiveBooleanFunc;
 
-elisp._definePrimitives = function() {
-elisp.definePrimitive('consp', ['symbol'], elisp.makePrimitiveBooleanFunc(elisp.isCons),
-    "Return T if symbol is a cons, nil otherwise.");
+init.hook('Define Primitive Variables and Functions', function() {
+    var type = require('elisp/types');
+    definePrimitive('consp', ['symbol'], makePrimitiveBooleanFunc('isCons'),
+        "Return T if symbol is a cons, nil otherwise.");
+    
+    definePrimitive('atom', ['symbol'], makePrimitiveBooleanFunc('isAtom'),
+        "Return T if symbol is not a cons or is nil, nil otherwise.");
+    
+    definePrimitive('symbol-name', ['symbol'],
+        function(symbol) { return new type.LispString(symbol.symbolName()); },
+        "Return a symbol's name, a string.");
+    
+    definePrimitive('string-match', ['regex', 'string', '&optional', 'start'],
+        function(regex, string, start) {
+    	     var index = start ? start.value() : 0,
+    		 s = string.value().substring(index),
+    		 match = s.match(new RegExp(regex.value())),
+    		 found = match ? new type.LispNumber(s.indexOf(match[0])) : type.NIL;
+    	     return found;},
+        "Return the index of the char matching regex in string, beginning from start if available.");
+    
+    // Right now a single string in the arg list will cause all the arguments
+    // to be converted to strings similar to JavaScript.  These
+    // semantics suck and should change, not only for real emacs lisp compatibility.
+    // ... for now it's the only way to catenate strings. 
+    definePrimitive('+', [/*...*/],
+        function() {
+    	     var args = utils.shallowCopy(arguments),
+    		 initial = type.inferType(args),
+		 result = utils.reduce(function(sum, n) {
+                      return sum + n.value();
+		 }, initial.value(), args);
+    	     return type.construct(initial.tag(), result);
+	}, "add two numbers");
+    
+    definePrimitive('-', [/*...*/],
+        function() {
+	    if (arguments.length == 1) {
+		return new type.LispNumber(0 - arguments[0].value());
+	    }
+	    var initial = arguments.length > 1 ? arguments[0].value() : 0,
+	        args = utils.shallowCopy(arguments).slice(1),
+		result = utils.reduce(function(diff, n) {
+		    return diff - n.value();
+                }, initial, args);
+	    return new type.LispNumber(result);
+	}, "negate a number, or subtract two or more numbers");
+    
+    definePrimitive('*', [/*...*/],
+        function() {
+	    var initial = arguments.length >= 1 ? arguments[0].value() : 1,
+		args = utils.shallowCopy(arguments).slice(1),
+		result = utils.reduce(function(prod, n){
+		    return prod * n.value();
+		}, initial, args);
+	    return new type.LispNumber(result);
+	}, "multiply one or more numbers");
+    
+    definePrimitive('/', [/*...*/],
+        function() {
+	    // TODO signal a real error for < 2 arguments
+	    if (arguments.length < 2) {
+		print("[error] invalid division, need 2 or more params");
+		return type.NIL;
+	    }
+	    var initial = arguments[0].value(),
+		args = utils.shallowCopy(arguments).slice(1),
+		result = utils.foldr(function(quot, n) {
+		    return quot / n.value();
+		}, initial, args);
+	    return new type.LispNumber(result);
+    	 }, "divide two or more numbers");
+    
+    definePrimitive('print', ['x'], utils.pp, "print an expression");
 
-elisp.definePrimitive('atom', ['symbol'], elisp.makePrimitiveBooleanFunc(elisp.isAtom),
-    "Return T if symbol is not a cons or is nil, nil otherwise.");
-
-elisp.definePrimitive('symbol-name', ['symbol'],
-    function(symbol) { return elisp.string(elisp.val(symbol)); },
-    "Return a symbol's name, a string.");
-
-elisp.definePrimitive('string-match', ['regex', 'string', '&optional', 'start'],
-    function(regex, string, start) {
-	     var index = start ? elisp.val(start) : 0,
-		 s = elisp.val(string).substring(index),
-		 match = s.match(new RegExp(elisp.val(regex))),
-		 found = match ? elisp.number(s.indexOf(match[0])) : elisp.nil;
-	     return found;},
-    "Return the index of the char matching regex in string, beginning from start if available.");
-
-// Right now a single string in the arg list will cause all the arguments
-// to be converted to strings similar to JavaScript.  These
-// semantics suck and should change, not only for real emacs lisp compatibility.
-elisp.definePrimitive('+', [/*...*/],
-    function() {
-	     var args = elisp.Util.shallowCopy(arguments),
-		 initial = elisp.inferType(args),
-		 type = initial[0];
-	     return elisp.Util.reduce(function(sum, n) {
-		     return [type, elisp.val(sum) + elisp.val(n)];
-	         }, initial, args);},
-    "add two numbers");
-
-elisp.definePrimitive('-', [/*...*/],
-    function() {
-            return elisp.Util.foldr(function(diff, n) {
-		return elisp.number(elisp.val(diff) - elisp.val(n));
-	    }, elisp.number(0), elisp.Util.shallowCopy(arguments));},
-    "subtract two numbers");
-
-elisp.definePrimitive('*', [/*...*/],
-    function() {
-	     return elisp.Util.reduce(function(prod, n) {
-		     return elisp.number(elisp.val(prod) * elisp.val(n));
-	         }, elisp.number(1), elisp.Util.shallowCopy(arguments));},
-    "multiply two numbers");
-
-elisp.definePrimitive('/', [/*...*/],
-    function() {
-	     return elisp.Util.foldr(function(quot, n) {
-		     return elisp.number(elisp.val(quot) / elisp.val(n));
-	         }, elisp.number(1), elisp.Util.shallowCopy(arguments));
-	 },
-    "divide two numbers");
-
-elisp.definePrimitive('print', ['x'],
-    function(x, tostring) {
-	     var buffer = "",
-		 tag = elisp.tag(x);
-	     function p(s) {
-		 if (tostring) buffer += s;
-		 else print(s);
-	     }
-	     if (tag == 'number' || tag == 'symbol' || tag == 'string') {
-		 p(elisp.val(x));
-	     }
-	     else if (tag == 'lambda') {
-		 var fn = elisp.val(x);
-		 p('(lambda ' + fn.name + ' (' + fn.params + ')\n');
-		 p(fn.body); // TODO lisp pretty print
-		 p(')');
-	     }
-	     else if (tag == 'list') {
-		 var recurse = arguments.callee; // far easier to remember than Y
-		 print('(', El.val(x).map(function(e){return (recurse(e, true) + ' ');}), ")");
-	     }
-	     else {
-		 print('unknown type: ' + x);
-	     }
-	     return elisp.nil;
-	 },
-    "print an expression");
-
-elisp.definePrimitive('hide-prompt', ['yes-or-no'],
-    function(bool){ elisp.hidePrompt = !elisp.isNil(bool); },
-    "Call with T to hide the prompt or nil to show it.");
-};
-elisp.initHook(elisp._definePrimitives);
+    var settings = require('elisp/settings');
+    definePrimitive('hide-prompt', ['yes-or-no'],
+        function(bool){ settings.hidePrompt = !bool.isNil(); },
+        "Call with T to hide the prompt or nil to show it.");
+});

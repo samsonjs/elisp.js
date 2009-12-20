@@ -6,98 +6,121 @@
 // Released under the terms of the MIT license.  See the included file
 // LICENSE.
 
-elisp.consPair = function(pair) {
-    var cons = ['cons', pair];
-    cons.isList = true;
-    return cons;
+var type = require('elisp/types'),
+    utils = require('elisp/utils'),
+    LispCons = type.LispCons,
+    NIL = type.NIL;
+
+LispCons.prototype.car = function() {
+//     print('[LispCons.car] calling this.isNil - this: ' + this + ' - _car: ' + this._car);
+//     print('------');
+//     print('' + this._tag);
+//     print('------');
+//     print('car: ' + this._car._tag);
+//     print('------');
+//     print('cdr: ' + this._cdr._tag);
+//     print('------');
+    //utils.pp(this);
+    return this.isNil() ? this : this._car;
 };
 
-elisp.cons = function(car, cdr) {
-    return elisp.consPair([car, cdr]);
+LispCons.prototype.cdr = function() {
+//     print('[LispCons.cdr] calling this.isNil - this: ' + this + ' - _cdr: ' + this._cdr);
+    return this.isNil() ? this : this._cdr;
 };
 
-elisp.car = function(cons) {
-    return elisp.isNil(cons) ? cons : elisp.val(cons)[0];
+LispCons.prototype.cadr = function() {
+    return this.cdr().car();
 };
 
-elisp.cdr = function(cons) {
-    return elisp.isNil(cons) ? cons : elisp.val(cons)[1];
+LispCons.prototype.caddr = function() {
+    return this.cdr().cdr().car();
 };
 
-elisp.cadr = function(cons) {
-    return elisp.car(elisp.cdr(cons));
+LispCons.prototype.cadddr = function() {
+    return this.cdr().cdr().cdr().car();
 };
 
-elisp.caddr = function(cons) {
-    return elisp.car(elisp.cdr(elisp.cdr(cons)));
+LispCons.prototype.length = function() {
+    return this._length;
 };
 
-elisp.cadddr = function(cons) {
-    return elisp.car(elisp.cdr(elisp.cdr(elisp.cdr(cons))));
-};
-
-elisp.listLength = function(cons) {
-    var n = 0;
-    while (!elisp.isNil(cons)) {
-	cons = elisp.cdr(cons);
-	++n;
-    }
-    return n;
-};
-
-elisp.listLast = function(cons) {
-    var last;
-    while (!elisp.isNil(cons)) {
+LispCons.prototype.last = function() {
+    var last,
+	cons = this;
+//    print('[LispCons.last] calling cons.isNil - cons: ' + cons + ' - _cdr: ' + cons._cdr);
+    while (!cons.isNil()) {
 	last = cons;
-	cons = elisp.cdr(cons);
+	cons = cons.cdr();
     }
-    return elisp.car(last);
+    return last.car();
 };
 
-elisp.listMap = function(cons, fn) {
+LispCons.prototype.map = function(fn) {
     var list = [],
-	i = 0;
-    while (!elisp.isNil(cons)) {
-	list.push(fn(elisp.car(cons), i));
-	cons = elisp.cdr(cons);
+	i = 0,
+	cons = this;
+//    print('[LispCons.map] calling cons.isNil - cons: ' + cons + ' - _car: ' + cons._car + ' _cdr: ' + this._cdr);
+    while (!cons.isNil()) {
+	list.push(fn(cons.car(), i));
+	cons = cons.cdr();
 	++i;
     }
-    return list.length > 0 ? elisp.list(list) : elisp.nil;
+    return list.length > 0 ? type.mkList(list) : type.NIL;
 };
 
-elisp.listReduce = function(fn, accum, cons) {
+LispCons.prototype.reduce = function(accum, fn) {
     var i = 0,
-	n = elisp.listLength(cons);
+	n = this._length;
     while (i < n) {
-	accum = fn(accum, elisp.nth(i++, cons));
+	accum = fn(accum, this.nth(i++));
     }
     return accum;
 };
 
-elisp.idFunction = function(x){return x;};
-
-elisp.unlist = function(cons) {
-    return elisp.listReduce(elisp.idFunction, [], cons);
+LispCons.prototype.unlist = function() {
+    return this.reduce([], function(x){return x;});
 };
 
-elisp.nth = function(n, cons) {
+LispCons.prototype.nth = function(n) {
     var i = 0,
-	e;
-    while (i <= n && !elisp.isNil(cons)) {
-	e = elisp.car(cons);
-	cons = elisp.cdr(cons);
+	e,
+	cons = this;
+//    print('[LispCons.nth] calling cons.isNil - cons: ' + cons + ' - _cdr: ' + cons._cdr);
+    while (i <= n && !cons.isNil()) {
+	e = cons.car();
+	cons = cons.cdr();
 	++i;
     }
-    return n > --i ? elisp.nil : e;
+    return n > --i ? type.NIL : e;
 };
 
-elisp.nthcdr = function(n, cons) {
-    var e = elisp.cdr(cons),
+LispCons.prototype.nthcdr = function(n) {
+    var e = this.cdr(),
 	i = 0;
-    while (i < n && !elisp.isNil(e)) {
-	e = elisp.cdr(e);
+//    print('[LispCons.nthcdr] calling e.isNil - e: ' + e + ' - _cdr: ' + e._cdr);
+    while (i < n && !e.isNil()) {
+	e = e.cdr();
 	++i;
     }
-    return n > i ? elisp.nil : e;
+    return n > i ? type.NIL : e;
 };
 
+
+// Make NIL act like a list ... there's got to be a better way
+
+NIL.unlist = function(){return [];};
+
+NIL._length = 0;
+NIL.length = function(){return 0;};
+
+NIL.reduce = function(accum){return accum;};
+
+nilMethods = ['car', 'cdr', 'cadr', 'caddr', 'cadddr',
+              'last', 'map', 'nthcdr', 'nth'];
+
+var nilFn = function(){return NIL;};
+
+for (var method in nilMethods) {
+    NIL[method] = nilFn;
+}

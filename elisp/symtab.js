@@ -6,17 +6,16 @@
 // Released under the terms of the MIT license.  See the included file
 // LICENSE.
 
-/****************************************************************
- **** Symbol Table **********************************************
- ****************************************************************/
+var utils = require('elisp/utils'),
+    type = require('elisp/types');
 
-elisp.SymbolTable = function(bindings) {
+var SymbolTable = function(bindings) {
     this.symbols = [[]];
     this.level = 0;
     if (bindings) this.define(bindings);
 };
 
-elisp.SymbolTable.prototype.lookupWithScope = function(name) {
+SymbolTable.prototype.lookupWithScope = function(name) {
     var i = this.level,
 	symbol;
     while (i >= 0) {
@@ -29,14 +28,18 @@ elisp.SymbolTable.prototype.lookupWithScope = function(name) {
     return null;
 };
 
-elisp.SymbolTable.prototype.lookup = function(name) {
+SymbolTable.prototype.lookup = function(name) {
+//    print('name: ' + name);
     var pair = this.lookupWithScope(name);
+//    print('pair: ' + pair);
+//    print('------');
     return pair && pair[1];
 };
 
 // store the given symbol/value pair in the symbol table at the current level.
-elisp.SymbolTable.prototype.define = function(name, value) {
-    if (value === undefined && elisp.typeOf(name) == 'array') {	
+SymbolTable.prototype.define = function(name, value) {
+//    print('###### REAL DEFINE: ' + name + ' = ' + value);
+    if (value === undefined && utils.typeOf(name) == 'array') {	
 	var bindings = name,
 	    i = 0,
 	    n = bindings.length,
@@ -55,7 +58,7 @@ elisp.SymbolTable.prototype.define = function(name, value) {
     }
 };
 
-elisp.SymbolTable.prototype.pushScope = function(bindings) {
+SymbolTable.prototype.pushScope = function(bindings) {
 //     print('>>> pushing scope <<<');
 //     print('>>> level going from ' + this.level + ' to ' + (1+this.level));
 //     print(bindings);
@@ -63,16 +66,15 @@ elisp.SymbolTable.prototype.pushScope = function(bindings) {
     if (bindings) this.define(bindings);
 };
 
-elisp.SymbolTable.prototype.popScope = function() {
+SymbolTable.prototype.popScope = function() {
     --this.level;
 };
 
-elisp.SymbolTable.prototype.set = function(name, value) {
+SymbolTable.prototype.set = function(name, value) {
     var pair = this.lookupWithScope(name),
 	level = pair[0];
     this.symbols[level][name] = value;
 };
 
-/****************************************************************
- ****************************************************************/
+exports.SymbolTable = SymbolTable;
 

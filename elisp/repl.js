@@ -6,48 +6,65 @@
 // Released under the terms of the MIT license.  See the included file
 // LICENSE.
 
-elisp.eval = function(exprs) {
-    var e = new elisp.Evaluator();
-    return e.evalExpressions(exprs);
-};
+var parser = require('elisp/parser'),
+    evaluator = require('elisp/evaluator'),
+    utils = require('elisp/utils'),
+    Parser = parser.Parser,
+    Evaluator = evaluator.Evaluator;
 
-elisp.parse = function(string) {
-    var p = new elisp.Parser();
+// this should probably be renamed to avoid confusion
+var eval = function(string) {
+    var p = new Parser(),
+	e = new Evaluator();
+    return e.evalExpressions(p.parse(string));
+};
+exports.eval = eval;
+
+var parse = function(string) {
+    var p = new Parser();
     return p.parse(string);
 };
+exports.parse = parse;
 
-elisp.parseOne = function(string) {
-    return elisp.parse(string)[0];
+var parseOne = function(string) {
+    return parse(string).car();
 };
+exports.parseOne = parseOne;
+exports.read = parseOne;
 
-elisp.read = elisp.parseOne;
-elisp.print = elisp.Util.pp;
+exports.pp = utils.pp;
 
-elisp.rep = function(string) {
-    elisp.print(elisp.eval(elisp.parse(string)));
+var rep = function(string) {
+    var p = new Parser(),
+	e = new Evaluator();
+    utils.pp(e.eval(p.read(string)));
 };
+exports.rep = rep;
 
-elisp.repl = function() {
-    var p = new elisp.Parser(),
-	e = new elisp.Evaluator();
+var repl = function() {
+    var p = new Parser(),
+	e = new Evaluator(),
+	sys = require('system'),
+	settings = require('elisp/settings');
     while (true) {
-	if (!elisp.hidePrompt) {
-	    print("elisp> "); // i don't want a newline, grrrr
+	if (!settings.hidePrompt) {
+	    sys.stdout.print("elisp> "); // i don't want a newline, grrrr
 	}
 	try {
-	    var line = readline();
+	    var line = sys.stdin.readLine();
 	    while (!line) {
-		line = readline();
+		line = sys.stdin.readLine();
 	    }
 	    if (line.substring(0,1).toLowerCase() == 'q') return;
-	    elisp.print(e.eval(p.parseOne(line)));
+	    utils.pp(e.eval(p.parseOne(line)));
 	} catch (x) {
 	    if (x.evalError) {
 		print('[error] ' + x.message + ': ' + x.expression);
-		elisp.print(x);		
+		utils.pp(x);		
 	    }
 	    else throw(x);
 	}
     }
 };
+exports.repl = repl;
 

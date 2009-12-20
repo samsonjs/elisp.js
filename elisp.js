@@ -23,26 +23,47 @@
 // 
 ///
 
+if (require.paths[0] != '.') require.paths.unshift('.');
+//require.paths.unshift('elisp');
 
-// our namespace
-var elisp = function(){};
+//print('[elisp starting]');
 
+var init = require('elisp/init');  // simple init system
+exports.init = init;
+//print('* init');
 
-load('elisp/init.js');  // simple init system
-load('elisp/jsExt.js'); // a few extensions to native types
-load('elisp/util.js');  // utilities
+require('elisp/jsExt'); // extensions to native types
+//print('* jsExt');
+
+exports.utils = require('elisp/utils');
+//print('* utils');
 
 // main lisp system
-load('elisp/types.js');
-load('elisp/list.js');
-load('elisp/symtab.js');
-load('elisp/parser.js');
-load('elisp/evaluator.js');
-load('elisp/primitives.js');
-load('elisp/repl.js');
+exports.type = require('elisp/types');
+exports.T = exports.type.T;
+exports.NIL = exports.type.NIL;
+//print('* type');
+
+exports.list = require('elisp/list');
+//print('* list');
+
+exports.symtab = require('elisp/symtab');
+//print('* symtab');
+
+exports.parser = require('elisp/parser');
+//print('* parser');
+
+exports.primitives = require('elisp/primitives');
+//print('* primitives');
+
+exports.evaluator = require('elisp/evaluator');
+//print('* evaluator');
+
+var repl = require('elisp/repl');
+exports.repl = repl;
+//print('* repl');
 
 // everything is defined, initialize
-elisp.init();
+init.initialize();
 
-// q to quit
-elisp.repl();
+//print('[elisp ready]');
