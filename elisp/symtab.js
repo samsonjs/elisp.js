@@ -39,6 +39,7 @@ SymbolTable.prototype.lookup = function(name) {
 // store the given symbol/value pair in the symbol table at the current level.
 SymbolTable.prototype.define = function(name, value) {
 //    print('###### REAL DEFINE: ' + name + ' = ' + value);
+//    print('           (TYPES): ' + utils.typeOf(name) + ' = ' + utils.typeOf(value));
     if (value === undefined && utils.typeOf(name) == 'array') {	
 	var bindings = name,
 	    i = 0,

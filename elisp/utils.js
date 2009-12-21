@@ -69,7 +69,11 @@ var pp = function(x, toString) {
 	s = '';
     }
     else if (!x.repr) {
-	s = '[UNKNOWN VALUE: ' + x + ']'; // what are you?!
+	s = '[UNKNOWN VALUE: ' + x + ' = {\n'; // what are you?!
+	for (var y in x) {
+	    s += '    ' + y + ': ' + x[y] + "\n";
+	}
+	s += '}';
     }
     else {
 	s = x.repr();

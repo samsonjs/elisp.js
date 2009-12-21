@@ -14,10 +14,9 @@ Latest version available on github:
 (or "You must be kidding")
 ==========================
 
-I'm not 100% sure why I think this might be useful to somebody.  The
-idea of editing code directly on github or bitbucket in a web browser
-is pretty cool though, and if you're going to do such a thing why not
-use the best tools available.  IMO those tools are written in Emacs
+The idea of editing code directly on github or bitbucket in a web
+browser is pretty cool, and if you're going to do such a thing why not
+use the best tools available?  IMO those tools are written in Emacs
 Lisp so I would like to use them in the browser.  Maybe with some
 HTML5 offline goodness thrown in.
 
@@ -25,84 +24,77 @@ Seeing Ymacs[1] in action[2] was also an inspiration to start this
 project as I've had it on my TODO list for several months now.  Emacs
 in the browser could be a reality; Ymacs is proof.
 
+With Palm's release of "Project Ares"[3] the need for such tools is
+beginning to be a reality.  I'm no longer that uncertain why such a
+beast would be useful.  The question now is whether using something
+like Google's Native Client and original C version of Emacs is the way
+to go, or if a slower implementation in JavaScript is feasible for
+real use.
+
 [1] http://www.ymacs.org/
 [2] http://www.ymacs.org/demo/
+[3] http://pdnblog.palm.com/2009/12/project-ares-open-beta/
+[4] http://code.google.com/p/nativeclient/
 
 
 Getting Started
 ===============
 
-Command line
-------------
+I'm currently using CommonJS via Narwhal[1] with the JavaScriptCore
+engine.  I've run the tests under v8 as well and they all pass, but
+not everything is tested by any means.
 
-If you have rlwrap and js then just run el.sh.  If not install a
-JavaScript shell of your choice, and I recommend you install rlwrap
-(readline wrap).  Edit el.sh to reflect whether or not you use rlwrap
-and your shell's name or path.  Then run el.sh.  I've only run this
-under SpiderMonkey so I have no idea if it works under any other
-implementations.  Glad to accept info and/or patches.
+[1] http://narwhaljs.org/
+
+If you have rlwrap and narwhal then just run elisp.sh.  If not install
+a JavaScript shell of your choice, and I recommend you install rlwrap
+(readline wrap).  Edit elisp.sh to reflect whether or not you use
+rlwrap and your shell's name or path, and then run elisp.sh.
 
 Type a 'Q' or 'q' to quit the repl.  Or anything that starts with Q,
 like 'quickly quit lisp!'.  (If lisp freaks out because you entered ^D
 or something ^C or ^Z should still get you out.)
 
-
-Emacs
------
-
-I use Emacs and js-comint.el[3] with inferior-js set to
-/opt/local/bin/js, which is SpiderMonkey[4] from MacPorts[5] on Snow
-Leopard.
-
-[3] http://js-comint-el.sourceforge.net/
-[4] http://www.mozilla.org/js/spidermonkey/
-[5] http://www.macports.org/
-
-For loading code C-c b sends the buffer to the JS repl.  I also use
-the EL.rep (read-eval-print), EL.parse, EL.eval, and EL.print
-functions defined in el/repl.js
-
 Here's an example:
 
 % cd Projects/elisp.js
-% rlwrap js
-js> load('el.js')
-elisp> 
+% ./elisp.sh
+elisp>
 (defvar *directory* "/Users/sjs" "My home directory")
+nil
 elisp>
 *directory*
-["string", "/Users/sjs"]
+"/Users/sjs"
 elisp> 
 (setq foo 1 bar 2 baz 3)
-["number", 3]
+3
 elisp> 
 (/ (+ foo bar baz) 3)
-["number", 2]
+2
 elisp> 
 (string-match "[a-z]lurgh" (symbol-name 'foo-blurgh))
-["number", 4]
+4
 elisp> 
 q
-js> 
+% 
 
-(If you know how to print without a trailing newline in SpiderMonkey
+(If you know how to print without a trailing newline in JavaScript
  please let me know.)
 
 There are other interfaces into the parser and evaluator besides the
-shortcuts.  new EL.Parser([input]) returns a parser object and likewise
-new EL.Evaluator([exprs]) returns an evaluator object.
+shortcuts.  new elisp.parser.Parser([input]) returns a parser object
+and likewise new elisp.evaluator.Evaluator([exprs]) returns an
+evaluator object.
 
 Mainly toy functions that do extremely simple operations on numbers
 and strings can be implemented right now.  Stay tuned, or better yet
-hack away and submit a pull request on github[6].
-
-[6] http://github.com/samsonjs/elisp.js
+hack away and submit a pull request on github.
 
 
 What's here?
 ============
 
-Not much compared to the real thing but it's a decent start for < 1000
+Not much compared to the real thing but it's a decent start for 1500
 lines.
 
  * parser/reader. there's no lexing to tokens we go straight to tagged
@@ -115,7 +107,7 @@ lines.
 
  * expression evaluator
 
- * simple tagged primitive types
+ * primitive types
    (string, symbol, lambda, number, cons)
 
  * special forms for defvar, defun, set, setq, if, and quote
@@ -124,6 +116,3 @@ lines.
 
  * a few primitive math ops
    (thanks to JS' overloading + works on strings too)
-
- * 2 horrible print functions
-   (JS "pretty" printer & a half-assed Lisp print)

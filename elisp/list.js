@@ -30,15 +30,15 @@ LispCons.prototype.cdr = function() {
 };
 
 LispCons.prototype.cadr = function() {
-    return this.cdr().car();
+    return this.nth(1);
 };
 
 LispCons.prototype.caddr = function() {
-    return this.cdr().cdr().car();
+    return this.nth(2);
 };
 
 LispCons.prototype.cadddr = function() {
-    return this.cdr().cdr().cdr().car();
+    return this.nth(3);
 };
 
 LispCons.prototype.length = function() {
@@ -60,7 +60,6 @@ LispCons.prototype.map = function(fn) {
     var list = [],
 	i = 0,
 	cons = this;
-//    print('[LispCons.map] calling cons.isNil - cons: ' + cons + ' - _car: ' + cons._car + ' _cdr: ' + this._cdr);
     while (!cons.isNil()) {
 	list.push(fn(cons.car(), i));
 	cons = cons.cdr();
@@ -79,7 +78,7 @@ LispCons.prototype.reduce = function(accum, fn) {
 };
 
 LispCons.prototype.unlist = function() {
-    return this.reduce([], function(x){return x;});
+    return this.reduce([], function(acc, x){acc.push(x); return acc;});
 };
 
 LispCons.prototype.nth = function(n) {
@@ -92,7 +91,7 @@ LispCons.prototype.nth = function(n) {
 	cons = cons.cdr();
 	++i;
     }
-    return n > --i ? type.NIL : e;
+    return n > (i-1) ? type.NIL : e;
 };
 
 LispCons.prototype.nthcdr = function(n) {

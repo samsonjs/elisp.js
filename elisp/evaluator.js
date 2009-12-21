@@ -58,7 +58,6 @@ Evaluator.prototype.evalExpressions = function(expressions) {
 	    }
 	}
     }
-//     Utils.pp(result);
     return result;
 };
 
@@ -84,13 +83,10 @@ Evaluator.prototype.apply = function(func, args) {
 	this.functions.pushScope();
 	this.variables.pushScope(func.params.map(function(e, i){
 		var name = e.symbolName(),
-		    value = {
-			type: 'variable',
-			value: this.eval(args[i])
-		    };
-                return [name, value];
-	    }));
-	result = func.body.map(function(e) {return this.eval(e); }).last();
+		    value = this.eval(args[i]);
+                return [name, {type:'variable', value:value}];
+	    }).unlist());
+	result = this.evalExpressions(func.body);
 	this.functions.popScope();
 	this.variables.popScope();
     }
@@ -102,7 +98,7 @@ Evaluator.prototype.eval = function(expr) {
     //utils.pp(expr);
     var result, x,
 	tag = expr.tag();
-    if (expr.isAtom()) {
+    if (expr.isString() || expr.isNumber()) {
 	result = expr;
     }
     else if (expr.isSymbol()) {
@@ -121,9 +117,9 @@ Evaluator.prototype.eval = function(expr) {
 	result = expr.cdr();
     }
     else if (expr.isDefvar()) {
-	var name = expr.cadr().symbolName(),   // 2nd param
-	    value = this.eval(expr.caddr()),   // 3rd param
-	    docstring = expr.cadddr();         // 4th param
+	var name = expr.nth(1).symbolName(),
+	    value = this.eval(expr.nth(2)),
+	    docstring = expr.nth(3);
 	// TODO check for re-definitions
 	this.defineVar(name, value, docstring);
 	result = type.NIL;
@@ -138,8 +134,8 @@ Evaluator.prototype.eval = function(expr) {
 	result = type.NIL;
     }
     else if (expr.isSet()) {
-	var name = expr.car().symbolName(),
-	    value = this.eval(expr.cdr());
+	var name = expr.nth(1).symbolName(),
+	    value = this.eval(expr.nth(2));
 	this.setVar(name, value);
 	result = value;
     }
@@ -188,10 +184,12 @@ Evaluator.prototype.eval = function(expr) {
 	    result = this.apply(func, args);
 	}
 	else {
+	    result = type.NIL;
 	    this.error('undefined-func', name);
 	}
     }
     else {
+	result = type.NIL;
 	this.error('not-expr', expr);
     }
 //     print('RESULT: ' + result);

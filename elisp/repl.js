@@ -60,7 +60,6 @@ var repl = function() {
 	} catch (x) {
 	    if (x.evalError) {
 		print('[error] ' + x.message + ': ' + x.expression);
-		utils.pp(x);		
 	    }
 	    else throw(x);
 	}

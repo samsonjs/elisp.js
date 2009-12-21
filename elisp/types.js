@@ -218,7 +218,7 @@ var inferType = function(exprs) {
     var type_name = 'number',
         initial = 0,
         i = exprs.length-1;
-    while(i >= 0) {
+    while (i >= 0) {
 	if (!exprs[i--].isNumber()) {
 	    type_name = 'string';
 	    initial = '';
