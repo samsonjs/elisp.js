@@ -46,19 +46,63 @@ var notFunc = function(fn) {
 };
 exports.notFunc = notFunc;
 
-var makePrimitiveBooleanFunc = function(fn) {
+var makeBooleanFunc = function(fn) {
     return function(x){ return x[fn]() ? type.T : type.NIL; };
 };
-exports.makePrimitiveBooleanFunc = makePrimitiveBooleanFunc;
+exports.makeBooleanFunc = makeBooleanFunc;
+
+// TODO FIXME make NIL act like the empty list
+var makeNilFn = function(fn) {
+    return function(arg){ return arg.isNil() ? arg : arg[fn](); };
+};
+
+var makeZeroFn = function(fn) {
+    return function(arg){ return arg.isNil() ? new type.LispNumber(0) : arg[fn](); };
+};
 
 init.hook('Define Primitive Variables and Functions', function() {
-    var type = require('elisp/types');
-    definePrimitive('consp', ['symbol'], makePrimitiveBooleanFunc('isCons'),
-        "Return T if symbol is a cons, nil otherwise.");
+
+    definePrimitive('consp', ['symbol'], makeBooleanFunc('isCons'),
+        "Return t if symbol is a cons, nil otherwise.");
     
-    definePrimitive('atom', ['symbol'], makePrimitiveBooleanFunc('isAtom'),
-        "Return T if symbol is not a cons or is nil, nil otherwise.");
+    definePrimitive('atom', ['symbol'], makeBooleanFunc('isAtom'),
+        "Return t if symbol is not a cons or is nil, nil otherwise.");
+
+
+// list functions
     
+    definePrimitive('car', ['arg'], makeNilFn('car'),
+        "Return the car of list.  If arg is nil, return nil. \
+Error if arg is not nil and not a cons cell.");
+
+    definePrimitive('cdr', ['arg'], makeNilFn('cdr'),
+	"Return the cdr of list.  If arg is nil, return nil. \
+Error if arg is not nil and not a cons cell.");
+
+    definePrimitive('nth', ['n', 'arg'], function(n, arg){
+	return arg.isNil() ? arg : arg.nth(n.value());
+    }, "Return the nth element of list. \
+n counts from zero.  If list is not that long, nil is returned.");
+
+    definePrimitive('nthcdr', ['n', 'arg'], function(n, arg){
+	return arg.isNil() ? arg : arg.nthcdr(n.value());
+    }, "Take cdr n times on list, returns the result.");
+
+    definePrimitive('cadr', ['arg'], makeNilFn('cadr'),
+	"Return the car of the cdr of x.");
+
+    definePrimitive('caddr', ['arg'], makeNilFn('caddr'),
+	"Return the car of the cdr of the cdr of x.");
+
+    definePrimitive('cadddr', ['arg'], makeNilFn('cadddr'),
+	"Return the car of the cdr of the cdr of the cdr of x.");
+
+//////////
+///// FIXME new symbol table! this makes the current one barf, because it sucks
+/////
+//     definePrimitive('length', ['arg'], makeZeroFn('length'),
+// 	"Return the length of list.");
+
     definePrimitive('symbol-name', ['symbol'],
         function(symbol) { return new type.LispString(symbol.symbolName()); },
         "Return a symbol's name, a string.");

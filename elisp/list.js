@@ -83,43 +83,22 @@ LispCons.prototype.unlist = function() {
 
 LispCons.prototype.nth = function(n) {
     var i = 0,
-	e,
-	cons = this;
-//    print('[LispCons.nth] calling cons.isNil - cons: ' + cons + ' - _cdr: ' + cons._cdr);
+	cons = this,
+        e = cons.car();
     while (i <= n && !cons.isNil()) {
 	e = cons.car();
 	cons = cons.cdr();
 	++i;
     }
-    return n > (i-1) ? type.NIL : e;
+    return e;
 };
 
 LispCons.prototype.nthcdr = function(n) {
-    var e = this.cdr(),
-	i = 0;
-//    print('[LispCons.nthcdr] calling e.isNil - e: ' + e + ' - _cdr: ' + e._cdr);
-    while (i < n && !e.isNil()) {
+    var e = this,
+	i = 1;
+    while (i <= n && !e.isNil()) {
 	e = e.cdr();
 	++i;
     }
-    return n > i ? type.NIL : e;
+    return e;
 };
-
-
-// Make NIL act like a list ... there's got to be a better way
-
-NIL.unlist = function(){return [];};
-
-NIL._length = 0;
-NIL.length = function(){return 0;};
-
-NIL.reduce = function(accum){return accum;};
-
-nilMethods = ['car', 'cdr', 'cadr', 'caddr', 'cadddr',
-              'last', 'map', 'nthcdr', 'nth'];
-
-var nilFn = function(){return NIL;};
-
-for (var method in nilMethods) {
-    NIL[method] = nilFn;
-}
